@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<head>
+    <title>Result</title>
+
+    <script>
+        function openDetail(channel_name, post_date) {
+            $('#channel_name').val(channel_name);
+            $('#post_date').val(post_date);
+            $('#form').submit()
+        }
+
+        $(function(){
+        });
+
+    </script>
+</head>
+<body>
+    <p>
+        検索結果：{{ data_count }}&nbsp;件
+    </p>
+    <br />
+    <table border="1">
+        <tr>
+            <th width="50px">
+                詳細
+            </th>
+            <th width="100px">
+                channel
+            </th>
+            <th width="150px">
+                投稿者
+            </th>
+            <th width="200px">
+                投稿日
+            </th>
+            <th width="1000px">
+                メッセージ
+            </th>
+            <!--
+            <th width="100px">
+                返信者
+            </th>
+            <th width="150px">
+                返信日
+            </th>
+            <th width="450px">
+                メッセージ
+            </th>
+            -->
+        </tr>
+        {% for record in result_list %}
+            <tr>
+                <td>
+                    <button onclick="javascript: openDetail('{{ record.channel_name }}', '{{ record.post_date }}')">詳細</button>
+                </td>
+                <td>
+                    {{ record.channel_name }}
+                </td>
+                <td>
+                    {% if record.post_name != '' %}
+                        <img src="../icon/{{ record.post_name }}.jpg" />
+                    {% endif %}
+                    {{ record.post_name }}
+                </td>
+                <td>
+                    {{ record.post_date }}
+                </td>
+                <td style="white-space:pre-wrap">
+                    {{ record.post_message }}
+                </td>
+                <!--
+                <td>
+                    <img src="../icon/{{ record.reply_name }}.jpg" />
+                    {{ record.reply_name }}
+                </td>
+                <td>
+                    {{ record.reply_date }}
+                </td>
+                <td>
+                    {{ record.reply_message }}
+                </td>
+                -->
+            </tr>
+        {% endfor %}
+    </table>
+    <form id="form" name="form" action="/detail" method="post" target="_blank" >
+        <input type="hidden" id="channel_name" name="channel_name" value="" />
+        <input type="hidden" id="post_date" name="post_date" value="" />
+    </form>
+</body>
+</html>

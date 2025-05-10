@@ -46,11 +46,6 @@ def execute(logger: Logger, root_dir, bin_dir):
                 logger,
                 root_dir,
                 bin_dir,
-                params['target_key'],
-                int(params['is_export_public']),
-                int(params['is_export_private']),
-                int(params['is_export_im']),
-                True if not 'is_get_messages' in params else int(params['is_get_messages'])
             )
             service.main()
 
@@ -65,7 +60,6 @@ def execute(logger: Logger, root_dir, bin_dir):
                 logger,
                 root_dir,
                 bin_dir,
-                params['target_key'],
             )
             service.main()
 

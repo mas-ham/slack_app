@@ -260,7 +260,7 @@ class BaseView(tk.Frame):
 
         """
         var = tk.BooleanVar()
-        checkbox = tk.Checkbutton(root, text=text, variable=var, width=width, background=background)
+        checkbox = tk.Checkbutton(root, text=text, variable=var, width=width, background=background, anchor=sticky)
         checkbox.grid(row=row, column=column, sticky=sticky, padx=padx, pady=pady)
         return checkbox, var
 

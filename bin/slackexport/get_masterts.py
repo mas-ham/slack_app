@@ -4,8 +4,10 @@ Slackからマスター情報を取得する
 create 2025/05/09 hamada
 """
 import os
+import sys
 
 import requests
+from tkinter import messagebox
 import pandas as pd
 
 from common import const
@@ -15,16 +17,19 @@ from app_common.slack_service import SlackService
 
 
 class GetMasters:
-    def __init__(self, logger:Logger, root_dir, bin_dir, target_key):
+    def __init__(self, logger:Logger, root_dir, bin_dir):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
-        self.target_key = target_key
 
-        # 設定ファイル
-        self.conf_slack_info = app_shared_service.get_conf(root_dir, const.CONF_SLACK_INFO, target_key)
+        # SlackAPIトークンを取得
+        token = app_shared_service.get_token()
         # Slackサービス
-        self.slack_service = SlackService(logger, self.conf_slack_info['token'])
+        if token is None:
+            self.logger.error('Not Define ENVIRONMENT_KEY [SLACK_API_TOKEN]')
+            messagebox.showwarning('WARN', '環境変数「SLACK_API_TOKEN」が定義されていません')
+            sys.exit()
+        self.slack_service = SlackService(logger, token)
 
 
     def main(self):
@@ -43,11 +48,11 @@ class GetMasters:
         df_channel_im = self._get_channel_list('im',)
 
         # ユーザー情報の登録
-        app_shared_service.regist_datafile(df_user, const.USER_FILENAME, const.USER_SHEET_NAME, [])
+        df_user.to_excel(const.USER_FILENAME, sheet_name=const.USER_SHEET_NAME)
         # チャンネル情報の登録
-        app_shared_service.regist_datafile(df_channel_public, const.PUBLIC_CHANNEL_FILENAME, const.CHANNEL_SHEET_NAME, [])
-        app_shared_service.regist_datafile(df_channel_private, const.PRIVATE_CHANNEL_FILENAME, const.CHANNEL_SHEET_NAME, [])
-        app_shared_service.regist_datafile(df_channel_im, const.IM_CHANNEL_FILENAME, const.CHANNEL_SHEET_NAME, [])
+        df_channel_public.to_excel(const.PUBLIC_CHANNEL_FILENAME, sheet_name=const.CHANNEL_SHEET_NAME)
+        df_channel_private.to_excel(const.PRIVATE_CHANNEL_FILENAME, sheet_name=const.CHANNEL_SHEET_NAME)
+        df_channel_im.to_excel(const.IM_CHANNEL_FILENAME, sheet_name=const.CHANNEL_SHEET_NAME)
 
 
     def _get_user_list(self):

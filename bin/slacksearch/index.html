@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<head>
+    <title>Slack Search</title>
+
+    <script>
+        function doSearch() {
+            $('#poster_list').val(getCheckTarget('poster').join(','));
+            $('#public_channel_list').val(getCheckTarget('public_channel').join(','));
+            $('#private_channel_list').val(getCheckTarget('private_channel').join(','));
+            $('#im_channel_list').val(getCheckTarget('im_channel').join(','));
+
+            $('#form').submit()
+        }
+
+        function getCheckTarget(targetName) {
+            return Array.from(
+                document.querySelectorAll('input[type="checkbox"][name="' + targetName + '"]:checked')
+            ).map(cb => cb.value);
+        }
+
+        $(function(){
+            $('#search').click(function() {
+                doSearch();
+            });
+        });
+
+    </script>
+</head>
+<body>
+    <form id="form" name="form" action="/search" method="POST" target="_blank">
+        <input type="hidden" id="poster_list" name="poster_list" value="" />
+        <input type="hidden" id="public_channel_list" name="public_channel_list" value="" />
+        <input type="hidden" id="private_channel_list" name="private_channel_list" value="" />
+        <input type="hidden" id="im_channel_list" name="im_channel_list" value="" />
+        <table>
+            <tr>
+                <th width="120px">
+                    検索文字列
+                </th>
+                <td>
+                    <input type="text" id="search_val" name="search_val" size="50" />
+                    &nbsp;
+                    <input type="radio" id="search_type_and" name="search_type" value="01" checked="checked" />
+                    <label for="search_type_and">AND検索</label>
+                    <input type="radio" id="search_type_or" name="search_type" value="02" />
+                    <label for="search_type_or">OR検索</label>
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    投稿者/返信者
+                </th>
+                <td>
+                    <input type="button" id="poster_all_sel" value="全選択" />
+                    <input type="button" id="poster_all_desel" value="全解除" />
+                    {% for row in poster_list %}
+                        <div>
+                        {% for poster in row %}
+                            <input type="checkbox" id="{{ poster.user_id }}" name="poster" value="{{ poster.user_id }}" {{ poster.checked }} />
+                            <label for="{{ poster.user_id }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                                {{ poster.display_name }}
+                            </label>
+                        {% endfor %}
+                        </div>
+                    {% endfor %}
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    channel(public)
+                </th>
+                <td>
+                    <input type="button" id="public_channel_all_sel" value="全選択" />
+                    <input type="button" id="public_channel_all_desel" value="全解除" />
+                    {% for row in public_channel_list %}
+                        <div>
+                        {% for public_channel in row %}
+                            <input type="checkbox" id="{{ public_channel.channel_name }}" name="public_channel" value="{{ public_channel.channel_name }}" {{ public_channel.checked }} />
+                            <label for="{{ public_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                                {{ public_channel.channel_name }}
+                            </label>
+                        {% endfor %}
+                        </div>
+                    {% endfor %}
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    channel(private)
+                </th>
+                <td>
+                    <input type="button" id="private_channel_all_sel" value="全選択" />
+                    <input type="button" id="private_channel_all_desel" value="全解除" />
+                    {% for row in private_channel_list %}
+                        <div>
+                        {% for private_channel in row %}
+                            <input type="checkbox" id="{{ private_channel.channel_name }}" name="private_channel" value="{{ private_channel.channel_name }}" {{ private_channel.checked }} />
+                            <label for="{{ private_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                                {{ private_channel.channel_name }}
+                            </label>
+                        {% endfor %}
+                        </div>
+                    {% endfor %}
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    channel(im)
+                </th>
+                <td>
+                    <input type="button" id="im_channel_all_sel" value="全選択" />
+                    <input type="button" id="im_channel_all_desel" value="全解除" />
+                    {% for row in im_channel_list %}
+                        <div>
+                        {% for im_channel in row %}
+                            <input type="checkbox" id="{{ im_channel.channel_name }}" name="im_channel" value="{{ im_channel.channel_name }}" {{ im_channel.checked }} />
+                            <label for="{{ im_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                                {{ im_channel.channel_name }}
+                            </label>
+                        {% endfor %}
+                        </div>
+                    {% endfor %}
+                </td>
+            </tr>
+        </table>
+        <br />
+        <table>
+            <tr>
+                <td>
+                    <button id="search" style="width: 7em; height : 3em">検索</button>
+                </td>
+            </tr>
+        </table>
+        <br />
+    </form>
+</body>
+</html>

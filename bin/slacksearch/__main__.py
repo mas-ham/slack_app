@@ -38,36 +38,17 @@ def execute(logger: Logger, root_dir, bin_dir):
     shared_service.start_log(logger, params['application'], is_print=True)
 
     match params['application']:
-        case 'get_messages':
-            # メッセージ取得
+        case 'search':
+            # 検索
             # パフォーマンスを考慮し関数内でimport
-            from slackexport.get_messages import GetMessages
-            service = GetMessages(
+            from slacksearch.search_message import SearchMessage
+            dialog = SearchMessage(
                 logger,
                 root_dir,
                 bin_dir,
-                params['target_key'],
-                int(params['is_export_public']),
-                int(params['is_export_private']),
-                int(params['is_export_im']),
-                True if not 'is_get_messages' in params else int(params['is_get_messages'])
             )
-            service.main()
-
-            # 結果返却
-            # shared_service.result_return(root_dir, {'status': status, 'message': message, 'data': result_list})
-
-        case 'get_masters':
-            # マスター情報取得
-            # パフォーマンスを考慮し関数内でimport
-            from slackexport.get_masterts import GetMasters
-            service = GetMasters(
-                logger,
-                root_dir,
-                bin_dir,
-                params['target_key'],
-            )
-            service.main()
+            dialog.pack()
+            dialog.mainloop()
 
             # 結果返却
             # shared_service.result_return(root_dir, {'status': status, 'message': message, 'data': result_list})

@@ -9,8 +9,6 @@ bin/result/*.txt
 export/im/*.xlsx
 export/public/*.xlsx
 export/private/*.xlsx
-conf/*_get_messages.json
-conf/*_slack_info.json
 bin/data/*.xlsx
 bin/icon/*.jpg
 *__pycache__*

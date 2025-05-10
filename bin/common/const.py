@@ -2,8 +2,7 @@ CONF_DIR = 'conf'
 DATA_DIR = 'data'
 ICON_DIR = 'icon'
 # 設定ファイル
-CONF_SLACK_INFO = 'slack_info.json'
-CONF_GET_MESSAGES = 'get_messages.json'
+SETTINGS_FILENAME = 'settings.json'
 # 絵文字ファイル
 EMOJI_FILENAME = 'emoji.txt'
 

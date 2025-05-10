@@ -4,9 +4,11 @@ Slackから投稿を取得する
 create 2025/05/09 hamada
 """
 import os
+import sys
 import datetime
 import time
 
+from tkinter import messagebox
 import pandas as pd
 import openpyxl
 from openpyxl.styles import Font
@@ -25,22 +27,22 @@ pd.options.display.float_format = '{:.6f}'.format
 
 
 class GetMessages:
-    def __init__(self, logger:Logger, root_dir, bin_dir, target_key, is_export_public, is_export_private, is_export_im, is_get_messages = True):
+    def __init__(self, logger:Logger, root_dir, bin_dir):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
-        self.target_key = target_key
-        self.is_export_public = is_export_public
-        self.is_export_private = is_export_private
-        self.is_export_im = is_export_im
-        self.is_get_messages = is_get_messages
 
         # 設定ファイル
-        self.conf_slack_info = app_shared_service.get_conf(root_dir, const.CONF_SLACK_INFO, target_key)
-        self.conf_get_messages = app_shared_service.get_conf(root_dir, const.CONF_GET_MESSAGES, target_key)
+        self.conf = app_shared_service.get_conf(self.root_dir)['get_messages']
+        # SlackAPIトークンを取得
+        token = app_shared_service.get_token()
         # Slackサービス
-        if is_get_messages:
-            self.slack_service = SlackService(logger, self.conf_slack_info['token'])
+        if int(self.conf['is_get_messages']):
+            if token is None:
+                self.logger.error('Not Define ENVIRONMENT_KEY [SLACK_API_TOKEN]')
+                messagebox.showwarning('WARN', '環境変数「SLACK_API_TOKEN」が定義されていません')
+                sys.exit()
+            self.slack_service = SlackService(logger, token)
 
 
     def main(self):
@@ -51,33 +53,32 @@ class GetMessages:
 
         """
         # public
-        if self.is_export_public:
+        if int(self.conf['is_export_public']):
             channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'public')
-            if self.is_get_messages:
+            if int(self.conf['is_get_messages']):
                 self._get_slack_messages(channel_list_path, history_list_path, replies_list_path)
             self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PUBLIC_DIR)
 
         # private
-        if self.is_export_private:
+        if int(self.conf['is_export_private']):
             channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'private')
-            if self.is_get_messages:
+            if int(self.conf['is_get_messages']):
                 self._get_slack_messages(channel_list_path, history_list_path, replies_list_path)
             self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PRIVATE_DIR)
 
         # im
-        if self.is_export_im:
+        if int(self.conf['is_export_im']):
             channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'im')
-            if self.is_get_messages:
+            if int(self.conf['is_get_messages']):
                 self._get_slack_messages(channel_list_path, history_list_path, replies_list_path)
             self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.IM_DIR)
 
         # 設定ファイル更新
-        if self.is_get_messages:
-            json_data = {
-                'from_date': datetime.datetime.now().strftime('%Y/%m/%d'),
-                'to_date': ''
-            }
-            app_shared_service.write_conf(self.root_dir, const.CONF_GET_MESSAGES, self.target_key, json_data)
+        # from_dateを前日に更新する
+        if int(self.conf['is_get_messages']) and int(self.conf['is_overwrite_from_date']):
+            json_data = app_shared_service.get_conf(self.root_dir)
+            json_data['get_messages']['from_date'] = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y/%m/%d')
+            app_shared_service.write_conf(self.root_dir, const.SETTINGS_FILENAME, json_data)
 
 
     def _get_slack_messages(self, channel_list_path, history_list_path, replies_list_path):
@@ -100,8 +101,8 @@ class GetMessages:
         df_history, df_replies = self._get_history_and_replies(df_channel, history_list_path, replies_list_path)
 
         # 投稿情報、返信情報の登録
-        app_shared_service.regist_datafile(df_history, history_list_path, const.HISTORY_SHEET_NAME, [])
-        app_shared_service.regist_datafile(df_replies, replies_list_path, const.REPLIES_SHEET_NAME, [])
+        df_history.to_excel(history_list_path, sheet_name=const.HISTORY_SHEET_NAME)
+        df_replies.to_excel(replies_list_path, sheet_name=const.REPLIES_SHEET_NAME)
 
 
     def _get_history_and_replies(self, df_channel, history_list_path, replies_list_path):
@@ -164,8 +165,7 @@ class GetMessages:
         result_history = self.slack_service.get_history(channel_id, limit=1000, oldest=oldest, latest=latest)
 
         if not result_history['ok']:
-            print('get history error:' + result_history['error'])
-            self.logger.error('get history error:' + result_history['error'])
+            self.logger.error('get history error:' + result_history['error'], is_print=True)
             return
 
         conversation_history = result_history['messages']
@@ -227,8 +227,8 @@ class GetMessages:
         Returns:
 
         """
-        from_date = self.conf_get_messages['from_date']
-        to_date = self.conf_get_messages['to_date']
+        from_date = self.conf['from_date']
+        to_date = self.conf['to_date']
         if not from_date:
             # Toが空の場合は1週間前を指定する
             from_date = (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y/%m/%d')
@@ -237,8 +237,6 @@ class GetMessages:
             to_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y/%m/%d')
 
         self.logger.info(f'get_messages : {from_date} - {to_date}', is_print=True)
-        # print(from_date)
-        # print(to_date)
 
         # UNIX時間に変換
         oldest = datetime.datetime.strptime(from_date, '%Y/%m/%d').timestamp()
@@ -298,9 +296,6 @@ class GetMessages:
 
             output_file = os.path.join(self.root_dir, const.EXPORT_DIR, output_dir, sheet_name + '.xlsx')
             df_output.query('channel_name == "' + channel_name + '"').drop('channel_name', axis=1).reset_index(drop=True).to_excel(output_file, sheet_name=sheet_name)
-            # writer = pd.ExcelWriter(output_file, options={'strings_to_urls': False}, engine='openpyxl')
-            # df_output.query('channel_name == "' + channel_name + '"').drop('channel_name', axis=1).reset_index(drop=True).to_excel(writer, sheet_name=sheet_name)
-            # writer.close()
 
             # フォーマット
             wb = openpyxl.load_workbook(output_file)

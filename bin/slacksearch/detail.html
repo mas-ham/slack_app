@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<head>
+    <title>Detail</title>
+
+    <script>
+        $(function(){
+        });
+
+    </script>
+</head>
+<body>
+    <table>
+        <tr>
+            <th width="200px">
+                投稿日
+            </th>
+            <td width="1000px">
+                {{ post_date }}
+            </td>
+        </tr>
+        <tr>
+            <th>
+                投稿者
+            </th>
+            <td>
+                <img src="../icon/{{ post_name }}.jpg" />
+                {{ post_name }}
+            </td>
+        </tr>
+        <tr>
+            <th>
+                メッセージ
+            </th>
+            <td style="white-space:pre-wrap">
+                {{ post_message }}
+            </td>
+        </tr>
+    </table>
+    <br />
+    <table border="1">
+        <tr>
+            <th width="150px">
+                返信者
+            </th>
+            <th width="200px">
+                返信日
+            </th>
+            <th width="1000px">
+                メッセージ
+            </th>
+        </tr>
+        {% for record in result_list %}
+            <tr>
+                <td>
+                    {% if record.reply_name != '' %}
+                        <img src="../icon/{{ record.reply_name }}.jpg" />
+                    {% endif %}
+                    {{ record.reply_name }}
+                </td>
+                <td>
+                    {{ record.reply_date }}
+                </td>
+                <td style="white-space:pre-wrap">
+                    {{ record.reply_message }}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
