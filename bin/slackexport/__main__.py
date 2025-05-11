@@ -1,5 +1,5 @@
 """
-DML文生成__main__
+Slack投稿取得__main__
 
 create 2023/04/05 TIS hamada
 """

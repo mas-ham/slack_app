@@ -5,7 +5,8 @@
     <title>Result</title>
 
     <script>
-        function openDetail(channel_name, post_date) {
+        function openDetail(channel_type, channel_name, post_date) {
+            $('#channel_type').val(channel_type);
             $('#channel_name').val(channel_name);
             $('#post_date').val(post_date);
             $('#form').submit()
@@ -21,39 +22,31 @@
         検索結果：{{ data_count }}&nbsp;件
     </p>
     <br />
-    <table border="1">
+    <table border="1" width="98%">
         <tr>
-            <th width="50px">
+            <th width="5%">
                 詳細
             </th>
-            <th width="100px">
+            <th width="7%">
                 channel
             </th>
-            <th width="150px">
+            <th width="10%">
                 投稿者
             </th>
-            <th width="200px">
+            <th width="12%">
                 投稿日
             </th>
-            <th width="1000px">
+            <th width="66%">
                 メッセージ
             </th>
-            <!--
-            <th width="100px">
-                返信者
+            <th style="display:none">
+                channel_type
             </th>
-            <th width="150px">
-                返信日
-            </th>
-            <th width="450px">
-                メッセージ
-            </th>
-            -->
         </tr>
         {% for record in result_list %}
             <tr>
                 <td>
-                    <button onclick="javascript: openDetail('{{ record.channel_name }}', '{{ record.post_date }}')">詳細</button>
+                    <button onclick="javascript: openDetail('{{ record.channel_type }}', '{{ record.channel_name }}', '{{ record.post_date }}')">詳細</button>
                 </td>
                 <td>
                     {{ record.channel_name }}
@@ -68,26 +61,19 @@
                     {{ record.post_date }}
                 </td>
                 <td style="white-space:pre-wrap">
-                    {{ record.post_message }}
+                    {{ record.post_message|safe }}
                 </td>
-                <!--
-                <td>
-                    <img src="../icon/{{ record.reply_name }}.jpg" />
-                    {{ record.reply_name }}
+                <td style="display:none">
+                    {{ record.channel_type }}
                 </td>
-                <td>
-                    {{ record.reply_date }}
-                </td>
-                <td>
-                    {{ record.reply_message }}
-                </td>
-                -->
             </tr>
         {% endfor %}
     </table>
     <form id="form" name="form" action="/detail" method="post" target="_blank" >
+        <input type="hidden" id="channel_type" name="channel_type" value="" />
         <input type="hidden" id="channel_name" name="channel_name" value="" />
         <input type="hidden" id="post_date" name="post_date" value="" />
+        <input type="hidden" id="search_val" name="search_val" value="{{ search_val }}" />
     </form>
 </body>
 </html>

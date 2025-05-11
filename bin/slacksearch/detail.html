@@ -11,12 +11,12 @@
     </script>
 </head>
 <body>
-    <table>
+    <table width="98%">
         <tr>
-            <th width="200px">
+            <th width="10%">
                 投稿日
             </th>
-            <td width="1000px">
+            <td width="90%">
                 {{ post_date }}
             </td>
         </tr>
@@ -34,20 +34,20 @@
                 メッセージ
             </th>
             <td style="white-space:pre-wrap">
-                {{ post_message }}
+                {{ post_message|safe }}
             </td>
         </tr>
     </table>
     <br />
-    <table border="1">
+    <table border="1" width="98%">
         <tr>
-            <th width="150px">
+            <th width="10%">
                 返信者
             </th>
-            <th width="200px">
+            <th width="12%">
                 返信日
             </th>
-            <th width="1000px">
+            <th width="78%">
                 メッセージ
             </th>
         </tr>
@@ -63,7 +63,7 @@
                     {{ record.reply_date }}
                 </td>
                 <td style="white-space:pre-wrap">
-                    {{ record.reply_message }}
+                    {{ record.reply_message|safe }}
                 </td>
             </tr>
         {% endfor %}

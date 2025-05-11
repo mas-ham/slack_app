@@ -24,6 +24,46 @@
             $('#search').click(function() {
                 doSearch();
             });
+
+            $('#poster_all_sel').click(function() {
+                $('input[name="poster"]').prop('checked', true);
+                return false;
+            });
+
+            $('#poster_all_desel').click(function() {
+                $('input[name="poster"]').prop('checked', false);
+                return false;
+            });
+
+            $('#public_channel_all_sel').click(function() {
+                $('input[name="public_channel"]').prop('checked', true);
+                return false;
+            });
+
+            $('#public_channel_all_desel').click(function() {
+                $('input[name="public_channel"]').prop('checked', false);
+                return false;
+            });
+
+            $('#private_channel_all_sel').click(function() {
+                $('input[name="private_channel"]').prop('checked', true);
+                return false;
+            });
+
+            $('#private_channel_all_desel').click(function() {
+                $('input[name="private_channel"]').prop('checked', false);
+                return false;
+            });
+
+            $('#im_channel_all_sel').click(function() {
+                $('input[name="im_channel"]').prop('checked', true);
+                return false;
+            });
+
+            $('#im_channel_all_desel').click(function() {
+                $('input[name="im_channel"]').prop('checked', false);
+                return false;
+            });
         });
 
     </script>
@@ -34,14 +74,14 @@
         <input type="hidden" id="public_channel_list" name="public_channel_list" value="" />
         <input type="hidden" id="private_channel_list" name="private_channel_list" value="" />
         <input type="hidden" id="im_channel_list" name="im_channel_list" value="" />
-        <table>
+        <table border="1">
             <tr>
-                <th width="120px">
+                <th width="150px">
                     検索文字列
                 </th>
                 <td>
                     <input type="text" id="search_val" name="search_val" size="50" />
-                    &nbsp;
+
                     <input type="radio" id="search_type_and" name="search_type" value="01" checked="checked" />
                     <label for="search_type_and">AND検索</label>
                     <input type="radio" id="search_type_or" name="search_type" value="02" />
@@ -51,10 +91,10 @@
             <tr>
                 <th>
                     投稿者/返信者
+                    <button id="poster_all_sel">全選択</button>
+                    <button id="poster_all_desel">全解除</button>
                 </th>
                 <td>
-                    <input type="button" id="poster_all_sel" value="全選択" />
-                    <input type="button" id="poster_all_desel" value="全解除" />
                     {% for row in poster_list %}
                         <div>
                         {% for poster in row %}
@@ -70,15 +110,15 @@
             <tr>
                 <th>
                     channel(public)
+                    <button id="public_channel_all_sel">全選択</button>
+                    <button id="public_channel_all_desel">全解除</button>
                 </th>
                 <td>
-                    <input type="button" id="public_channel_all_sel" value="全選択" />
-                    <input type="button" id="public_channel_all_desel" value="全解除" />
                     {% for row in public_channel_list %}
                         <div>
                         {% for public_channel in row %}
-                            <input type="checkbox" id="{{ public_channel.channel_name }}" name="public_channel" value="{{ public_channel.channel_name }}" {{ public_channel.checked }} />
-                            <label for="{{ public_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                            <input type="checkbox" id="public_{{ public_channel.channel_name }}" name="public_channel" value="{{ public_channel.channel_name }}" {{ public_channel.checked }} />
+                            <label for="public_{{ public_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
                                 {{ public_channel.channel_name }}
                             </label>
                         {% endfor %}
@@ -89,15 +129,15 @@
             <tr>
                 <th>
                     channel(private)
+                    <button id="private_channel_all_sel">全選択</button>
+                    <button id="private_channel_all_desel">全解除</button>
                 </th>
                 <td>
-                    <input type="button" id="private_channel_all_sel" value="全選択" />
-                    <input type="button" id="private_channel_all_desel" value="全解除" />
                     {% for row in private_channel_list %}
                         <div>
                         {% for private_channel in row %}
-                            <input type="checkbox" id="{{ private_channel.channel_name }}" name="private_channel" value="{{ private_channel.channel_name }}" {{ private_channel.checked }} />
-                            <label for="{{ private_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                            <input type="checkbox" id="private_{{ private_channel.channel_name }}" name="private_channel" value="{{ private_channel.channel_name }}" {{ private_channel.checked }} />
+                            <label for="private_{{ private_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
                                 {{ private_channel.channel_name }}
                             </label>
                         {% endfor %}
@@ -108,15 +148,15 @@
             <tr>
                 <th>
                     channel(im)
+                    <button id="im_channel_all_sel">全選択</button>
+                    <button id="im_channel_all_desel">全解除</button>
                 </th>
                 <td>
-                    <input type="button" id="im_channel_all_sel" value="全選択" />
-                    <input type="button" id="im_channel_all_desel" value="全解除" />
                     {% for row in im_channel_list %}
                         <div>
                         {% for im_channel in row %}
-                            <input type="checkbox" id="{{ im_channel.channel_name }}" name="im_channel" value="{{ im_channel.channel_name }}" {{ im_channel.checked }} />
-                            <label for="{{ im_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
+                            <input type="checkbox" id="im_{{ im_channel.channel_name }}" name="im_channel" value="{{ im_channel.channel_name }}" {{ im_channel.checked }} />
+                            <label for="im_{{ im_channel.channel_name }}" style="width: 200px; display: inline-block; vertical-align: middle;" >
                                 {{ im_channel.channel_name }}
                             </label>
                         {% endfor %}
@@ -135,5 +175,11 @@
         </table>
         <br />
     </form>
+    <br />
+    <ul>
+        <li>チャンネル未選択だと検索0件になるが、エラーハンドリングしてない</li>
+        <li>期間指定ができない、、</li>
+        <li>レイアウトが全体的に美しくない、、</li>
+    </ul>
 </body>
 </html>
