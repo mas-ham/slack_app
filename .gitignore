@@ -14,6 +14,6 @@ export/im/*.xlsx
 export/public/*.xlsx
 export/private/*.xlsx
 bin/data/*.xlsx
-bin/icon/*.jpg
+bin/static/icon/*.jpg
 *__pycache__*
 !.gitkeep

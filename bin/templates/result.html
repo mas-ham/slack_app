@@ -3,6 +3,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <head>
     <title>Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/slack_app.css') }}" type="text/css">
 
     <script>
         function openDetail(channel_type, channel_name, post_date) {
@@ -53,15 +54,15 @@
                 </td>
                 <td>
                     {% if record.post_name != '' %}
-                        <img src="../icon/{{ record.post_name }}.jpg" />
+                        <img src="{{ record.post_icon }}" />
                     {% endif %}
                     {{ record.post_name }}
                 </td>
                 <td>
                     {{ record.post_date }}
                 </td>
-                <td style="white-space:pre-wrap">
-                    {{ record.post_message|safe }}
+                <td>
+                    <div style="white-space:pre-wrap">{{ record.post_message|safe }}</div>
                 </td>
                 <td style="display:none">
                     {{ record.channel_type }}

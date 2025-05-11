@@ -382,7 +382,7 @@ class GetMessages:
 
                 # 投稿者アイコン
                 icon_name = str(ws.cell(row=row_index, column=3).value)
-                img_path = os.path.join(self.bin_dir, const.ICON_DIR, icon_name)
+                img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), icon_name)
                 if os.path.exists(img_path):
                     ws.cell(row=row_index, column=3).value = None
                     img = Image(img_path)

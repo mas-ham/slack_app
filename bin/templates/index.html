@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <head>
+    <meta charset="UTF-8">
     <title>Slack Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/slack_app.css') }}" type="text/css">
 
     <script>
         function doSearch() {
@@ -86,6 +88,19 @@
                     <label for="search_type_and">AND検索</label>
                     <input type="radio" id="search_type_or" name="search_type" value="02" />
                     <label for="search_type_or">OR検索</label>
+                    &nbsp;&nbsp;
+                    <input type="checkbox" id="is_contains_reply" name="is_contains_reply" value="1" checked />
+                    <label for="is_contains_reply">返信内容を含める</label>
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    期間
+                </th>
+                <td>
+                    <input type="date" id="search_from_date" name="search_from_date" />
+                    ～
+                    <input type="date" id="search_to_date" name="search_to_date" />
                 </td>
             </tr>
             <tr>
@@ -175,11 +190,5 @@
         </table>
         <br />
     </form>
-    <br />
-    <ul>
-        <li>チャンネル未選択だと検索0件になるが、エラーハンドリングしてない</li>
-        <li>期間指定ができない、、</li>
-        <li>レイアウトが全体的に美しくない、、</li>
-    </ul>
 </body>
 </html>

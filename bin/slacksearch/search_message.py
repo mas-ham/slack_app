@@ -9,8 +9,8 @@ import re
 import pandas as pd
 
 from common import const
+from slacksearch.models import SlackSearchModel, SlackDetailModel
 
-CHECKBOX_WIDTH = 20
 POSTER_COLS = 5
 CHANNEL_COLS = 5
 
@@ -122,61 +122,44 @@ def get_channel_list(root_dir, bin_dir, channel_type):
     return result_list
 
 
-def search(root_dir, **kwargs):
+def search(root_dir, model: SlackSearchModel):
     """
     検索
 
     Args:
         root_dir:
-        **kwargs:
+        model:
 
     Returns:
 
     """
 
-    # 検索条件
-    search_val = kwargs['search_val']
-    search_type = kwargs['search_type']
-    poster_list_joined = kwargs['poster_list']
-    public_channel_list_joined = kwargs['public_channel_list']
-    private_channel_list_joined = kwargs['private_channel_list']
-    im_channel_list_joined = kwargs['im_channel_list']
-
-    # 検索条件のリスト項目をリストに戻す
-    poster_list = poster_list_joined.split(',')
-    public_channel_list = public_channel_list_joined.split(',')
-    private_channel_list = private_channel_list_joined.split(',')
-    im_channel_list = im_channel_list_joined.split(',')
-
-    # 検索文字列を分割
-    search_val_list = re.split(r'[ 　]+', search_val)
-
     result_list = []
     # public
-    for channel_name in public_channel_list:
-        result = _search_from_channel(root_dir, const.PUBLIC_DIR, channel_name, search_val_list, search_type, poster_list)
+    for channel_name in model.public_channel_list:
+        result = _search_from_channel(root_dir, const.PUBLIC_DIR, channel_name, model)
         if result is None:
             continue
         result_list.append(result)
 
     # private
-    for channel_name in private_channel_list:
-        result = _search_from_channel(root_dir, const.PRIVATE_DIR, channel_name, search_val_list, search_type, poster_list)
+    for channel_name in model.private_channel_list:
+        result = _search_from_channel(root_dir, const.PRIVATE_DIR, channel_name, model)
         if result is None:
             continue
         result_list.append(result)
 
     # im
-    for channel_name in im_channel_list:
-        result = _search_from_channel(root_dir, const.IM_DIR, channel_name, search_val_list, search_type, poster_list)
+    for channel_name in model.im_channel_list:
+        result = _search_from_channel(root_dir, const.IM_DIR, channel_name, model)
         if result is None:
             continue
         result_list.append(result)
 
-    return _convert_to_json_for_search(result_list, search_val_list)
+    return _convert_to_json_for_search(result_list, model.search_val_list)
 
 
-def _search_from_channel(root_dir, channel_type, channel_name, search_val_list, search_type, poster_list):
+def _search_from_channel(root_dir, channel_type, channel_name, model: SlackSearchModel):
     """
     チャンネルから対象を検索
 
@@ -184,9 +167,7 @@ def _search_from_channel(root_dir, channel_type, channel_name, search_val_list, 
         root_dir:
         channel_type:
         channel_name:
-        search_val_list:
-        search_type:
-        poster_list:
+        model:
 
     Returns:
 
@@ -201,39 +182,58 @@ def _search_from_channel(root_dir, channel_type, channel_name, search_val_list, 
     df_all['channel_name'] = channel_name
     df_all['channel_type'] = channel_type
 
-    # 投稿者/返信者で絞り込み
-    filtered_poster = df_all
-    if poster_list:
-        filtered_poster = df_all[df_all['post_name'].isin(poster_list) | df_all['reply_name'].isin(poster_list)]
+    # 投稿内容で検索
+    filtered_by_post = _search_post_replies(df_all, model, True)
 
-    if not search_val_list:
+    if not model.is_contains_reply:
+        # 返信を含めない場合はここで返却
+        return filtered_by_post
+
+    # 返信内容で検索
+    filtered_by_reply = _search_post_replies(df_all, model, False)
+
+    # マージ
+    merged_data = pd.concat([filtered_by_post, filtered_by_reply])
+    if merged_data.empty:
+        return pd.DataFrame()
+
+    # 重複を除去してソート
+    return merged_data.drop_duplicates(subset='post_date', keep='first').sort_values(by='post_date')
+
+
+def _search_post_replies(df_all, model:SlackSearchModel, is_post):
+    """
+    投稿内容/返信内容から検索
+
+    Args:
+        df_all:
+        model:
+        is_post:
+
+    Returns:
+
+    """
+
+    filtered_poster = df_all
+    if is_post:
+        filtered_poster = filtered_poster.query('group_flg == "0"')
+
+    if model.poster_list:
+        filtered_poster = df_all[df_all['post_name' if is_post else 'reply_name'].isin(model.poster_list)]
+
+    if not model.search_val_list:
         # 検索文字列が未入力の場合、この時点で返却
         return filtered_poster
 
-    df_work_list = []
-    for target in search_val_list:
-        # 投稿
-        df_work1 = filtered_poster.query('group_flg == "0"')
-        df_work1 = df_work1[df_work1['post_message'].str.contains(target, case=False)]
-        # 返信
-        df_work2 = filtered_poster
-        df_work2 = df_work2[df_work2['reply_message'].str.contains(target, case=False)]
+    if model.search_type == '01':
+        return filtered_poster[
+            filtered_poster['post_message' if is_post else 'reply_message'].apply(lambda x: all(kw.lower() in x.lower() for kw in model.search_val_list))
+        ]
 
-        # マージ
-        df_work = pd.concat([df_work1, df_work2])
-        df_work_list.append(df_work.groupby(df_work.index).first())
+    return filtered_poster[
+        filtered_poster['post_message' if is_post else 'reply_message'].apply(lambda x: any(kw.lower() in x.lower() for kw in model.search_val_list))
+    ]
 
-    df_base = df_work_list[0]
-    for i in range(1, len(df_work_list)):
-        if search_type == '01':
-            # AND検索の場合
-            df_base = pd.merge(df_base, df_work_list[i], how='inner')
-        else:
-            # OR検索の場合
-            df_base = pd.concat([df_base, df_work_list[i]])
-            df_base = df_base.groupby(df_base.index).first()
-
-    return df_base
 
 
 def _convert_to_json_for_search(record_list, search_val_list):
@@ -268,24 +268,19 @@ def _convert_to_json_for_search(record_list, search_val_list):
     return result_list
 
 
-def get_detail(root_dir, channel_type, channel_name, post_date, search_val):
+def get_detail(root_dir, model: SlackDetailModel):
     """
     詳細を取得
 
     Args:
         root_dir:
-        channel_type:
-        channel_name:
-        post_date:
-        search_val:
+        model:
 
     Returns:
 
     """
-    df = pd.read_excel(os.path.join(root_dir, const.EXPORT_DIR, channel_type, f'{channel_name}.xlsx'), dtype=str).fillna('').query('post_date == @post_date')
-
-    # ハイライト用に検索文字列を分割
-    search_val_list = re.split(r'[ 　]+', search_val)
+    post_date = model.post_date
+    df = pd.read_excel(os.path.join(root_dir, const.EXPORT_DIR, model.channel_type, f'{model.channel_name}.xlsx'), dtype=str).fillna('').query('post_date == @post_date')
 
     result_list = []
     post_name = ''
@@ -293,11 +288,11 @@ def get_detail(root_dir, channel_type, channel_name, post_date, search_val):
     for _, row in df.iterrows():
         if not post_name:
             post_name = row['post_name']
-            post_message = _add_highlights(row['post_message'], search_val_list)
+            post_message = _add_highlights(row['post_message'], model.search_val_list)
         result_list.append({
             'reply_name': row['reply_name'],
             'reply_date': row['reply_date'],
-            'reply_message': _add_highlights(row['reply_message'], search_val_list),
+            'reply_message': _add_highlights(row['reply_message'], model.search_val_list),
         })
 
     return post_date, post_name, post_message, result_list

@@ -9,6 +9,18 @@ import json
 from common import const
 
 
+def get_icon_dir(bin_dir):
+    """
+    アイコンフォルダを取得
+
+    Args:
+        bin_dir:
+
+    Returns:
+
+    """
+    return os.path.join(bin_dir, 'static', 'icon')
+
 def get_datafile(bin_dir, data_type):
     """
     チャンネル一覧、投稿一覧、返信一覧ファイルパスを取得

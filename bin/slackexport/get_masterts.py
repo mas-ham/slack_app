@@ -80,7 +80,7 @@ class GetMasters:
                 displayname = data['profile']['display_name']
                 filename = data['profile']['display_name'] + '.jpg'
 
-            with open(os.path.join(self.bin_dir, const.ICON_DIR, filename), 'wb') as f:
+            with open(os.path.join(app_shared_service.get_icon_dir(self.bin_dir), filename), 'wb') as f:
                 f.write(response.content)
 
             user_dict.append({'user_id':data['id'], 'user_name':data['profile']['real_name'], 'user_display_name':displayname, 'icon':filename, 'delete_flg':data['deleted']})
