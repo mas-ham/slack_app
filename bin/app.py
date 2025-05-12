@@ -66,24 +66,26 @@ def detail():
 
     """
     model = _convert_detail_model(request.form)
-    post_date, post_name, post_message, result_list = search_message.get_detail(root_dir, model)
+    result = search_message.get_detail(root_dir, model)
 
     # アイコンを設定
-    post_icon = url_for('static', filename=f'icon/{post_name}.jpg')
-    for record in result_list:
+    result.post_icon = url_for('static', filename=f'icon/{result.post_name}.jpg')
+    for record in result.result_list:
         record['reply_icon'] = url_for('static', filename=f'icon/{record["reply_name"]}.jpg')
 
-    return render_template(
-        'detail.html',
-        post_date=post_date,
-        post_icon=post_icon,
-        post_name=post_name,
-        post_message=post_message,
-        result_list=result_list
-    )
+    return render_template('detail.html', form=result)
 
 
 def _convert_search_model(form) -> models.SlackSearchModel:
+    """
+    検索用モデルへマッピング
+
+    Args:
+        form:
+
+    Returns:
+
+    """
     return models.SlackSearchModel(
         form['search_val'],
         re.split(r'[ 　]+', form['search_val']),
@@ -98,6 +100,15 @@ def _convert_search_model(form) -> models.SlackSearchModel:
     )
 
 def _convert_detail_model(form) -> models.SlackDetailModel:
+    """
+    詳細用モデルへマッピング
+
+    Args:
+        form:
+
+    Returns:
+
+    """
     return models.SlackDetailModel(
         form['channel_type'],
         form['channel_name'],
@@ -108,8 +119,17 @@ def _convert_detail_model(form) -> models.SlackDetailModel:
 
 
 def _convert_list(joined_val):
+    """
+    カンマ区切りの文字列をリストへ変換
+
+    Args:
+        joined_val:
+
+    Returns:
+
+    """
     return joined_val.split(',') if joined_val else []
 
 
 if __name__ == "__main__":
-    app.run(host='127.0.0.1', port=8888, debug=True)
+    app.run(host='127.0.0.1', port=5100, debug=True)

@@ -25,3 +25,11 @@ class SlackDetailModel:
     post_date: str = ''
     search_val: str = ''
     search_val_list: list = None
+
+@dataclasses.dataclass
+class SlackResultModel:
+    post_date: str = ''
+    post_icon: str = ''
+    post_name: str = ''
+    post_message: str = ''
+    result_list: list = None

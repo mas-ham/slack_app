@@ -1,3 +1,6 @@
+<!--
+    Slack検索：検索画面
+-->
 <!DOCTYPE html>
 <html lang="ja">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -7,6 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/slack_app.css') }}" type="text/css">
 
     <script>
+        // 検索
         function doSearch() {
             $('#poster_list').val(getCheckTarget('poster').join(','));
             $('#public_channel_list').val(getCheckTarget('public_channel').join(','));
@@ -16,6 +20,7 @@
             $('#form').submit()
         }
 
+        // チェックONのリストを取得
         function getCheckTarget(targetName) {
             return Array.from(
                 document.querySelectorAll('input[type="checkbox"][name="' + targetName + '"]:checked')
@@ -76,6 +81,7 @@
         <input type="hidden" id="public_channel_list" name="public_channel_list" value="" />
         <input type="hidden" id="private_channel_list" name="private_channel_list" value="" />
         <input type="hidden" id="im_channel_list" name="im_channel_list" value="" />
+        <h1>Slack検索</h1>
         <table border="1">
             <tr>
                 <th width="150px">
@@ -180,7 +186,7 @@
                 </td>
             </tr>
         </table>
-        <br />
+        <br>
         <table>
             <tr>
                 <td>
@@ -188,7 +194,7 @@
                 </td>
             </tr>
         </table>
-        <br />
+        <br>
     </form>
 </body>
 </html>

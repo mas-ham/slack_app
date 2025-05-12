@@ -45,7 +45,7 @@ class GetMasters:
         # public、private、im、mpimと分けて取得する(レスポンスにtypeが返却されないため)
         df_channel_public = self._get_channel_list('public_channel')
         df_channel_private = self._get_channel_list('private_channel')
-        df_channel_im = self._get_channel_list('im',)
+        df_channel_im = self.get_im_channel_list(df_user)
 
         # ユーザー情報の登録
         df_user.to_excel(const.USER_FILENAME, sheet_name=const.USER_SHEET_NAME)
@@ -90,7 +90,7 @@ class GetMasters:
 
     def _get_channel_list(self, channel_type):
         """
-       Slackからチャンネル情報を取得
+       Slackからチャンネル情報を取得(public/private)
 
         Args:
             channel_type:
@@ -113,16 +113,27 @@ class GetMasters:
         return pd.DataFrame(channel_dict)
 
 
-    def get_im_channel_list(self, channel_type):
+    def get_im_channel_list(self, df_user):
+        """
+       Slackからチャンネル情報を取得(im)
+
+        Args:
+            df_user:
+
+        Returns:
+
+        """
 
         # チャンネルリスト取得
-        result = self.slack_service.get_channel_list(channel_type)
+        result = self.slack_service.get_channel_list('im')
         channel_list = result['channels']
 
         # slackから取得した情報を追加
         channel_dict = []
         for data in channel_list:
-            channel_dict.append({'channel_id':data['id'], 'channel_name':data['user'], 'channel_type':channel_type})
+            # ユーザー名を取得
+            user_name = df_user.query('user_id == "' + data['user'] + '"').loc[0:, 'user_display_name']
+            channel_dict.append({'channel_id':data['id'], 'channel_name':user_name, 'channel_type':'im'})
 
         return pd.DataFrame(channel_dict)
 

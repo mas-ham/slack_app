@@ -9,7 +9,8 @@ import re
 import pandas as pd
 
 from common import const
-from slacksearch.models import SlackSearchModel, SlackDetailModel
+from app_common import app_shared_service
+from slacksearch.models import SlackSearchModel, SlackDetailModel, SlackResultModel
 
 POSTER_COLS = 5
 CHANNEL_COLS = 5
@@ -213,27 +214,41 @@ def _search_post_replies(df_all, model:SlackSearchModel, is_post):
     Returns:
 
     """
+    prefix = 'post' if is_post else 'reply'
 
-    filtered_poster = df_all
+    # 投稿者/返信者で絞り込み
+    filtered_data = df_all
     if is_post:
-        filtered_poster = filtered_poster.query('group_flg == "0"')
+        # 投稿者が対象の場合、group_flgが「0」のデータで絞り込む
+        filtered_data = filtered_data.query('group_flg == "0"')
 
     if model.poster_list:
-        filtered_poster = df_all[df_all['post_name' if is_post else 'reply_name'].isin(model.poster_list)]
+        filtered_data = df_all[df_all[f'{prefix}_name'].isin(model.poster_list)]
 
-    if not model.search_val_list:
-        # 検索文字列が未入力の場合、この時点で返却
-        return filtered_poster
+    # 期間(From)で絞り込み
+    if model.search_from_date:
+        from_date = app_shared_service.convert_from_date(model.search_from_date)
+        filtered_data = filtered_data[filtered_data[f'{prefix}_date'] >= from_date]
 
-    if model.search_type == '01':
-        return filtered_poster[
-            filtered_poster['post_message' if is_post else 'reply_message'].apply(lambda x: all(kw.lower() in x.lower() for kw in model.search_val_list))
-        ]
+    # 期間(To)で絞り込み
+    if model.search_to_date:
+        to_date = app_shared_service.convert_to_date(model.search_to_date)
+        filtered_data = filtered_data[filtered_data[f'{prefix}_date'] <= to_date]
 
-    return filtered_poster[
-        filtered_poster['post_message' if is_post else 'reply_message'].apply(lambda x: any(kw.lower() in x.lower() for kw in model.search_val_list))
-    ]
+    # 検索文字列で絞り込み
+    if model.search_val_list:
+        if model.search_type == '01':
+            # AND検索
+            filtered_data = filtered_data[
+                filtered_data[f'{prefix}_message'].apply(lambda x: all(kw.lower() in x.lower() for kw in model.search_val_list))
+            ]
+        else:
+            # OR検索
+            filtered_data = filtered_data[
+                filtered_data[f'{prefix}_message'].apply(lambda x: any(kw.lower() in x.lower() for kw in model.search_val_list))
+            ]
 
+    return filtered_data
 
 
 def _convert_to_json_for_search(record_list, search_val_list):
@@ -268,7 +283,7 @@ def _convert_to_json_for_search(record_list, search_val_list):
     return result_list
 
 
-def get_detail(root_dir, model: SlackDetailModel):
+def get_detail(root_dir, model: SlackDetailModel) -> SlackResultModel:
     """
     詳細を取得
 
@@ -279,23 +294,23 @@ def get_detail(root_dir, model: SlackDetailModel):
     Returns:
 
     """
-    post_date = model.post_date
-    df = pd.read_excel(os.path.join(root_dir, const.EXPORT_DIR, model.channel_type, f'{model.channel_name}.xlsx'), dtype=str).fillna('').query('post_date == @post_date')
+    result = SlackResultModel()
+    result.post_date = model.post_date
+    df = pd.read_excel(os.path.join(root_dir, const.EXPORT_DIR, model.channel_type, f'{model.channel_name}.xlsx'), dtype=str).fillna('').query('post_date == "' + result.post_date + '"')
 
     result_list = []
-    post_name = ''
-    post_message = ''
     for _, row in df.iterrows():
-        if not post_name:
-            post_name = row['post_name']
-            post_message = _add_highlights(row['post_message'], model.search_val_list)
+        if not result.post_name:
+            result.post_name = row['post_name']
+            result.post_message = _add_highlights(row['post_message'], model.search_val_list)
         result_list.append({
             'reply_name': row['reply_name'],
             'reply_date': row['reply_date'],
             'reply_message': _add_highlights(row['reply_message'], model.search_val_list),
         })
 
-    return post_date, post_name, post_message, result_list
+    result.result_list = result_list
+    return result
 
 
 def _add_highlights(val, target_vals):

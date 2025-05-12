@@ -1,3 +1,6 @@
+<!--
+    Slack検索：結果画面
+-->
 <!DOCTYPE html>
 <html>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -6,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/slack_app.css') }}" type="text/css">
 
     <script>
+        // 詳細画面を開く
         function openDetail(channel_type, channel_name, post_date) {
             $('#channel_type').val(channel_type);
             $('#channel_name').val(channel_name);
@@ -19,10 +23,10 @@
     </script>
 </head>
 <body>
+    <h1>検索結果</h1>
     <p>
-        検索結果：{{ data_count }}&nbsp;件
+        {{ data_count }}&nbsp;件
     </p>
-    <br />
     <table border="1" width="98%">
         <tr>
             <th width="5%">

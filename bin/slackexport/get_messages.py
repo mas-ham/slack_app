@@ -259,16 +259,9 @@ class GetMessages:
 
         """
         # 各種情報取得
-        # dtypes_channel = {'channel_id': 'str', 'channel_name': 'str', 'channel_type': 'str'}
         df_channel = pd.read_excel(channel_list_path, index_col=[0], names=('index', 'channel_id', 'channel_name', 'channel_type'))
-
-        # dtypes_user = {'user_id': 'str', 'user_name': 'str', 'user_display_name': 'str', 'icon': 'str', 'delete_flg': 'str'}
         df_user = pd.read_excel(os.path.join(self.bin_dir, const.DATA_DIR, const.USER_FILENAME), index_col=[0], names=('index', 'user_id', 'user_name', 'user_display_name', 'icon', 'delete_flg'))
-
-        # dtypes_history = {'channel_id': 'str', 'history_id': 'float', 'post_ts': 'datetime', 'post_message': 'str', 'post_user': 'str'}
         df_history = pd.read_excel(history_list_path, index_col=[0], names=('index', 'channel_id', 'history_id', 'post_date', 'post_message', 'post_user'))
-
-        # dtypes_replies = {'channel_id': 'str', 'history_id': 'float', 'replies_id': 'float', 'reply_ts': 'datetime', 'reply_message': 'str', 'reply_user': 'str'}
         df_replies = pd.read_excel(replies_list_path, index_col=[0], names=('index', 'channel_id', 'history_id', 'replies_id', 'reply_date', 'reply_message', 'reply_user'))
 
         # マージ
@@ -289,13 +282,8 @@ class GetMessages:
         # チャネル単位に出力
         channel_name_list = list(dict.fromkeys(df_output.loc[:, 'channel_name']))
         for channel_name in channel_name_list:
-            if output_dir == const.IM_DIR:
-                sheet_name = list(dict.fromkeys(df_user.query('user_id == "' + channel_name + '"').loc[0:, 'user_display_name']))[0]
-            else:
-                sheet_name = channel_name
-
-            output_file = os.path.join(self.root_dir, const.EXPORT_DIR, output_dir, sheet_name + '.xlsx')
-            df_output.query('channel_name == "' + channel_name + '"').drop('channel_name', axis=1).reset_index(drop=True).to_excel(output_file, sheet_name=sheet_name)
+            output_file = os.path.join(self.root_dir, const.EXPORT_DIR, output_dir, channel_name + '.xlsx')
+            df_output.query('channel_name == "' + channel_name + '"').drop('channel_name', axis=1).reset_index(drop=True).to_excel(output_file, sheet_name=channel_name)
 
             # フォーマット
             wb = openpyxl.load_workbook(output_file)
