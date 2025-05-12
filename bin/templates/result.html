@@ -25,7 +25,7 @@
 <body>
     <h1>検索結果</h1>
     <p>
-        {{ data_count }}&nbsp;件
+        {{ form.data_count.label }}&nbsp;件
     </p>
     <table border="1" width="98%">
         <tr>
@@ -75,10 +75,10 @@
         {% endfor %}
     </table>
     <form id="form" name="form" action="/detail" method="post" target="_blank" >
-        <input type="hidden" id="channel_type" name="channel_type" value="" />
-        <input type="hidden" id="channel_name" name="channel_name" value="" />
-        <input type="hidden" id="post_date" name="post_date" value="" />
-        <input type="hidden" id="search_val" name="search_val" value="{{ search_val }}" />
+        {{ form.channel_type }}
+        {{ form.channel_name }}
+        {{ form.post_date }}
+        {{ form.search_val }}
     </form>
 </body>
 </html>

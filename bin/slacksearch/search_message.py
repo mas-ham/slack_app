@@ -38,7 +38,7 @@ def get_poster_list(root_dir, bin_dir):
                 'user_id': row['user_display_name'],
                 'user_name': row['user_name'],
                 'display_name': f"{row['user_display_name']}：{row['user_name']}",
-                'checked': 'checked' if row['default_check_flg'] == True else '',
+                'checked': True if row['default_check_flg'] == True else False,
             })
     else:
         # 検索用ファイルがない場合はマスタから取得する
@@ -48,25 +48,10 @@ def get_poster_list(root_dir, bin_dir):
                 'user_id': row['user_display_name'],
                 'user_name': row['user_name'],
                 'display_name': f"{row['user_display_name']}：{row['user_name']}",
-                'checked': '',
+                'checked': False,
             })
 
-    # 行の高さを算出
-    q, r = divmod(len(poster_list), POSTER_COLS)
-    poster_rows = q if r == 0 else q + 1
-
-    result_list = []
-    poster_index = 0
-    for i in range(1, poster_rows + 2):
-        records = []
-        for j in range(0, POSTER_COLS):
-            if poster_index < len(poster_list):
-                records.append(poster_list[poster_index])
-                poster_index += 1
-
-        result_list.append(records)
-
-    return result_list
+    return poster_list
 
 
 def get_channel_list(root_dir, bin_dir, channel_type):
@@ -90,7 +75,7 @@ def get_channel_list(root_dir, bin_dir, channel_type):
         for _, row in df.iterrows():
             channel_list.append({
                 'channel_name': row['channel_name'],
-                'checked': 'checked' if row['default_check_flg'] == True else '',
+                'checked': True if row['default_check_flg'] == True else False,
             })
     else:
         # 検索用ファイルがない場合はマスタから取得する
@@ -105,22 +90,7 @@ def get_channel_list(root_dir, bin_dir, channel_type):
                 'checked': '',
             })
 
-    # 行の高さを算出
-    q, r = divmod(len(channel_list), CHANNEL_COLS)
-    channel_rows = q if r == 0 else q + 1
-
-    result_list = []
-    channel_index = 0
-    for i in range(1, channel_rows + 2):
-        records = []
-        for j in range(0, CHANNEL_COLS):
-            if channel_index < len(channel_list):
-                records.append(channel_list[channel_index])
-                channel_index += 1
-
-        result_list.append(records)
-
-    return result_list
+    return channel_list
 
 
 def search(root_dir, model: SlackSearchModel):

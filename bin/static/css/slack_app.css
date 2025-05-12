@@ -6,3 +6,20 @@ th {
 td {
   padding: 5px 10px;
 }
+
+.checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-width: 90%; /* 必要に応じて制限 */
+}
+
+.checkbox-item {
+  width: 19%; /* 100% ÷ 5 = 20%、少し余裕持たせる */
+  box-sizing: border-box;
+}
+
+.checkbox-label {
+  display: inline-block;
+  width: 250px;
+}

@@ -108,7 +108,7 @@ def convert_from_date(val):
     Returns:
 
     """
-    converted_datetime = dateutil.parser.parse(val)
+    converted_datetime = dateutil.parser.parse(val.strftime('%Y-%m-%d'))
     return converted_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
 def convert_to_date(val):
@@ -121,6 +121,6 @@ def convert_to_date(val):
     Returns:
 
     """
-    converted_datetime = dateutil.parser.parse(val)
+    converted_datetime = dateutil.parser.parse(val.strftime('%Y-%m-%d'))
     converted_datetime = converted_datetime + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
     return converted_datetime.strftime('%Y-%m-%d %H:%M:%S')
