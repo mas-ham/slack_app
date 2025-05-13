@@ -1,7 +1,7 @@
 """
-Slackからエクスポートした情報から検索する
+Slack検索の設定
 
-create 2025/05/10 hamada
+create 2025/05/13 hamada
 """
 import os
 import re
@@ -11,53 +11,62 @@ import bleach
 
 from common import const
 from app_common import app_shared_service
-from dataaccess.ext import slack_search_dataaccess
 from slacksearch.models import SlackSearchModel, SlackDetailModel, SlackResultModel
 
 
-def get_poster_list(root_dir, bin_dir, conn):
+def get_poster_list(root_dir, bin_dir):
     """
     投稿者/返信者一覧を取得
 
     Args:
         root_dir:
         bin_dir:
-        conn:
 
     Returns:
 
     """
-    dataaccess = slack_search_dataaccess.SlackSearchDataaccess(conn)
-    results = dataaccess.get_poster_list()
-
     poster_list = []
-    for _, row in results.iterrows():
-        poster_list.append({
-            'user_id': row['user_id'],
-            'user_name': row['user_name'],
-            'display_name': f"{row['user_id']}：{row['user_name']}",
-            'checked': row['default_check_flg'],
-        })
+
+    # マスタ情報
+    df = pd.read_excel(os.path.join(bin_dir, const.DATA_DIR, const.USER_FILENAME), sheet_name=const.USER_SHEET_NAME)
+
+    # 検索用ファイル
+    search_filename = os.path.join(root_dir, const.CONF_DIR, 'search', 'search_user_list.xlsx')
+    if os.path.isfile(search_filename):
+        df = pd.read_excel(search_filename, sheet_name=const.USER_SHEET_NAME).query('display_flg == True')
+        for _, row in df.iterrows():
+            poster_list.append({
+                'user_id': row['user_display_name'],
+                'user_name': row['user_name'],
+                'display_name': f"{row['user_display_name']}：{row['user_name']}",
+                'checked': True if row['default_check_flg'] == True else False,
+            })
+    else:
+        # 検索用ファイルがない場合はマスタから取得する
+        df = pd.read_excel(os.path.join(bin_dir, const.DATA_DIR, const.USER_FILENAME), sheet_name=const.USER_SHEET_NAME)
+        for _, row in df.iterrows():
+            poster_list.append({
+                'user_id': row['user_display_name'],
+                'user_name': row['user_name'],
+                'display_name': f"{row['user_display_name']}：{row['user_name']}",
+                'checked': False,
+            })
 
     return poster_list
 
 
-def get_channel_list(root_dir, bin_dir, conn, channel_type):
+def get_channel_list(root_dir, bin_dir, channel_type):
     """
     チャンネル一覧を取得
 
     Args:
         root_dir:
         bin_dir:
-        conn:
         channel_type:
 
     Returns:
 
     """
-    dataaccess = slack_search_dataaccess.SlackSearchDataaccess(conn)
-    results = dataaccess.get_channel_list(const.PUBLIC_DIR)
-
     channel_list = []
 
     # 検索用ファイル

@@ -1,0 +1,182 @@
+"""
+dataaccess：channel
+
+create 2025/05/13 hamada
+"""
+from dataaccess.common.base_dataaccess import BaseDataAccess
+from dataaccess.entity.channel import Channel
+
+
+TABLE_ID = 'channel'
+
+class ChannelDataAccess(BaseDataAccess):
+    def __init__(self, conn):
+        super().__init__(conn)
+
+        self.col_list = [
+            'channel_id',
+            'channel_name',
+            'channel_type',
+        ]
+
+
+    def select(self, conditions: list, order_by_list = None) -> list[Channel]:
+        """
+        Select
+
+        Args:
+            conditions:
+            order_by_list:
+
+        Returns:
+
+        """
+
+        results = self.execute_select(TABLE_ID, conditions, order_by_list)
+        if results.empty:
+            return []
+        return [Channel(row['channel_id'], row['channel_name'], row['channel_type']) for _, row in results.iterrows()]
+
+
+    def select_by_pk(self, ) -> Channel | None:
+        """
+        Select_by_PK
+
+        Args:
+
+        Returns:
+
+        """
+        results = self.execute_select_by_pk(TABLE_ID, )
+        if results.empty:
+            return None
+        return Channel(results[0]['channel_id'], results[0]['channel_name'], results[0]['channel_type'])
+
+
+    def select_all(self, order_by_list = None) -> list[Channel]:
+        """
+        Select_all
+
+        Args:
+            order_by_list:
+
+        Returns:
+
+        """
+        results = self.execute_select_all(TABLE_ID, order_by_list)
+        if results.empty:
+            return []
+        return [Channel(row['channel_id'], row['channel_name'], row['channel_type']) for _, row in results.iterrows()]
+
+
+    def insert(self, entity: Channel) -> int:
+        """
+        Insert
+
+        Args:
+            entity:
+
+        Returns:
+
+        """
+        params = (
+            entity.channel_id,
+            entity.channel_name,
+            entity.channel_type,
+        )
+        return self.execute_insert(TABLE_ID, self.col_list, params)
+
+
+    def insert_many(self, entity_list: list):
+        """
+        Insert_many
+
+        Args:
+            entity_list:
+
+        Returns:
+
+        """
+        params = []
+        for entity in entity_list:
+            params.append(
+                (
+                    entity.channel_id,
+                    entity.channel_name,
+                    entity.channel_type,
+                )
+            )
+        self.execute_insert_many(TABLE_ID, self.col_list, params)
+
+
+    def update(self, entity: Channel, ):
+        """
+        Update
+
+        Args:
+            entity:
+
+        Returns:
+
+        """
+        update_info = {
+            'channel_id': entity.channel_id,
+            'channel_name': entity.channel_name,
+            'channel_type': entity.channel_type,
+        }
+        self.execute_update(TABLE_ID, update_info, )
+
+
+    def update_selective(self, entity: Channel, ):
+        """
+        Update selective
+
+        Args:
+            entity:
+
+        Returns:
+
+        """
+        update_info = {}
+        if entity.channel_id is not None:
+            update_info['channel_id'] = entity.channel_id
+        if entity.channel_name is not None:
+            update_info['channel_name'] = entity.channel_name
+        if entity.channel_type is not None:
+            update_info['channel_type'] = entity.channel_type
+
+        self.execute_update(TABLE_ID, update_info, )
+
+
+    def delete(self, key: Channel):
+        """
+        Delete
+
+        Args:
+            key:
+
+        Returns:
+
+        """
+        key_map = {}
+        if key.channel_id is not None:
+            key_map['channel_id'] = key.channel_id
+        if key.channel_name is not None:
+            key_map['channel_name'] = key.channel_name
+        if key.channel_type is not None:
+            key_map['channel_type'] = key.channel_type
+
+        self.execute_delete(TABLE_ID, **key_map)
+
+
+    def delete_by_pk(self, ):
+        """
+        Delete_by_PK
+
+        Args:
+
+        Returns:
+
+        """
+        self.execute_delete(TABLE_ID, )
+

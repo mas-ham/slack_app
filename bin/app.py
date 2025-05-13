@@ -5,6 +5,7 @@ from flask import Flask, render_template, url_for, request
 from flask_wtf import FlaskForm
 from wtforms import Form, StringField, DateField, RadioField, BooleanField, FieldList, FormField, HiddenField, SubmitField
 
+from common import sql_shared_service
 from slacksearch import search_message, models
 
 
@@ -75,10 +76,12 @@ def index():
 
     """
 
-    poster_list = search_message.get_poster_list(root_dir, bin_dir)
-    public_channel_list = search_message.get_channel_list(root_dir, bin_dir, 'public')
-    private_channel_list = search_message.get_channel_list(root_dir, bin_dir, 'private')
-    im_channel_list = search_message.get_channel_list(root_dir, bin_dir, 'im')
+    with sql_shared_service.get_connection(root_dir) as conn:
+        poster_list = search_message.get_poster_list(root_dir, bin_dir, conn)
+        public_channel_list = search_message.get_channel_list(root_dir, bin_dir, conn, 'public')
+        private_channel_list = search_message.get_channel_list(root_dir, bin_dir, conn, 'private')
+        im_channel_list = search_message.get_channel_list(root_dir, bin_dir, conn, 'im')
+
 
     form = SlackSearchForm()
     # 検索タイプ
