@@ -10,28 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/slack_app.css') }}" type="text/css">
 
     <script>
-        // 検索
-        function doSearch() {
-            $('#poster_list').val(getCheckTarget('poster').join(','));
-            $('#public_channel_list').val(getCheckTarget('public_channel').join(','));
-            $('#private_channel_list').val(getCheckTarget('private_channel').join(','));
-            $('#im_channel_list').val(getCheckTarget('im_channel').join(','));
-
-            $('#form').submit()
-        }
-
-        // チェックONのリストを取得
-        function getCheckTarget(targetName) {
-            return Array.from(
-                document.querySelectorAll('input[type="checkbox"][name="' + targetName + '"]:checked')
-            ).map(cb => cb.value);
-        }
-
         $(function(){
-            $('#search').click(function() {
-                doSearch();
-            });
-
             $('#poster_all_sel').click(function() {
                 $('input[name^="poster_list"]').prop('checked', true);
                 return false;
@@ -86,7 +65,7 @@
                 </th>
                 <td>
                     {{ form.search_val }}
-
+                    &nbsp;
                     {% for search_type in form.search_type %}
                         {{ search_type }}
                         {{ search_type.label }}
@@ -187,7 +166,7 @@
         <table>
             <tr>
                 <td>
-                    <button id="search" style="width: 7em; height : 3em">検索</button>
+                    {{ form.search_button }}
                 </td>
             </tr>
         </table>

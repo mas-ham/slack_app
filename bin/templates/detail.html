@@ -15,31 +15,32 @@
     </script>
 </head>
 <body>
+    {{ form.hidden_tag() }}
     <h1>詳細</h1>
     <table width="98%">
         <tr>
             <th width="10%">
-                投稿日
+                {{ form.post_date.label }}
             </th>
             <td width="90%">
-                {{ form.post_date }}
+                {{ form.post_date.data }}
             </td>
         </tr>
         <tr>
             <th>
-                投稿者
+                {{ form.post_name.label }}
             </th>
             <td>
-                <img src="{{ form.post_icon }}" />
-                {{ form.post_name }}
+                <img src="{{ form.post_icon.data }}" />
+                {{ form.post_name.data }}
             </td>
         </tr>
         <tr>
             <th>
-                メッセージ
+                {{ form.post_message.label }}
             </th>
             <td>
-                <div style="white-space:pre-wrap">{{ form.post_message|safe }}</div>
+                <div style="white-space:pre-wrap; word-break:break-all">{{ form.post_message.data|safe }}</div>
             </td>
         </tr>
     </table>
@@ -56,7 +57,7 @@
                 メッセージ
             </th>
         </tr>
-        {% for record in form.result_list %}
+        {% for record in result_list %}
             <tr>
                 <td>
                     {% if record.reply_name != '' %}
@@ -68,7 +69,7 @@
                     {{ record.reply_date }}
                 </td>
                 <td>
-                    <div style="white-space:pre-wrap">{{ record.reply_message|safe }}</div>
+                    <div style="white-space:pre-wrap; word-break:break-all">{{ record.reply_message|safe }}</div>
                 </td>
             </tr>
         {% endfor %}

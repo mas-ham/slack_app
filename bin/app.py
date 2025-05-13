@@ -3,7 +3,7 @@ import re
 
 from flask import Flask, render_template, url_for, request
 from flask_wtf import FlaskForm
-from wtforms import Form, StringField, DateField, RadioField, BooleanField, FieldList, FormField, HiddenField
+from wtforms import Form, StringField, DateField, RadioField, BooleanField, FieldList, FormField, HiddenField, SubmitField
 
 from slacksearch import search_message, models
 
@@ -16,12 +16,18 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecret'
 
 class CheckboxItemForm(Form):
+    """
+    チェックボックス用Form
+    """
     checked = BooleanField()
     label = StringField()
     item_id = HiddenField()
 
 
 class SlackSearchForm(FlaskForm):
+    """
+    検索画面用Form
+    """
     search_val = StringField(label='検索文字列')
     search_type = RadioField('search_type_and', choices=[
         ('01', 'AND検索'), ('02', 'OR検索')
@@ -35,13 +41,29 @@ class SlackSearchForm(FlaskForm):
     private_channel_list = FieldList(FormField(CheckboxItemForm), min_entries=0)
     im_channel_list = FieldList(FormField(CheckboxItemForm), min_entries=0)
 
+    search_button = SubmitField('検索', render_kw={'style': 'width: 7em; height: 3em'})
+
 
 class SlackSearchResultForm(FlaskForm):
+    """
+    検索結果画面用Form
+    """
     search_val = HiddenField()
     data_count = StringField()
     channel_type = HiddenField()
     channel_name = HiddenField()
     post_date = HiddenField()
+
+
+class SlackSearchDetailForm(FlaskForm):
+    """
+    詳細画面用Form
+    """
+    search_val = HiddenField()
+    post_date = StringField('投稿日')
+    post_icon = HiddenField()
+    post_name = StringField('投稿者')
+    post_message = StringField('メッセージ')
 
 
 @app.route('/index')
@@ -113,7 +135,7 @@ def search():
 
     result_form = SlackSearchResultForm()
     result_form.search_val = form.search_val
-    result_form.data_count.label = str(len(result_list))
+    result_form.data_count.data = str(len(result_list))
 
     return render_template('result.html', form=result_form, result_list=result_list)
 
@@ -126,15 +148,21 @@ def detail():
     Returns:
 
     """
-    model = _convert_detail_model(request.form)
+    form = SlackSearchResultForm(request.form)
+    model = _convert_detail_model(form)
     result = search_message.get_detail(root_dir, model)
 
     # アイコンを設定
-    result.post_icon = url_for('static', filename=f'icon/{result.post_name}.jpg')
     for record in result.result_list:
         record['reply_icon'] = url_for('static', filename=f'icon/{record["reply_name"]}.jpg')
 
-    return render_template('detail.html', form=result)
+    detail_form = SlackSearchDetailForm()
+    detail_form.post_date.data = result.post_date
+    detail_form.post_icon.data = url_for('static', filename=f'icon/{result.post_name}.jpg')
+    detail_form.post_name.data = result.post_name
+    detail_form.post_message.data = result.post_message
+
+    return render_template('detail.html', form=detail_form, result_list=result.result_list)
 
 
 def _convert_search_model(form: SlackSearchForm) -> models.SlackSearchModel:
@@ -160,7 +188,7 @@ def _convert_search_model(form: SlackSearchForm) -> models.SlackSearchModel:
         form.search_to_date.data,
     )
 
-def _convert_detail_model(form) -> models.SlackDetailModel:
+def _convert_detail_model(form: SlackSearchResultForm) -> models.SlackDetailModel:
     """
     詳細用モデルへマッピング
 
@@ -171,11 +199,11 @@ def _convert_detail_model(form) -> models.SlackDetailModel:
 
     """
     return models.SlackDetailModel(
-        form['channel_type'],
-        form['channel_name'],
-        form['post_date'],
-        form['search_val'],
-        re.split(r'[ 　]+', form['search_val']),
+        form.channel_type.data,
+        form.channel_name.data,
+        form.post_date.data,
+        form.search_val.data,
+        re.split(r'[ 　]+', form.search_val.data),
     )
 
 

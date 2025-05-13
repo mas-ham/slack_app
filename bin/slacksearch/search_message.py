@@ -7,13 +7,11 @@ import os
 import re
 
 import pandas as pd
+import bleach
 
 from common import const
 from app_common import app_shared_service
 from slacksearch.models import SlackSearchModel, SlackDetailModel, SlackResultModel
-
-POSTER_COLS = 5
-CHANNEL_COLS = 5
 
 
 def get_poster_list(root_dir, bin_dir):
@@ -299,4 +297,6 @@ def _add_highlights(val, target_vals):
         pattern = re.compile(re.escape(target_val), re.IGNORECASE)
         result = pattern.sub(lambda match: f"<mark>{match.group()}</mark>", result)
 
-    return result
+    # サニタイズして返却
+    allowed_tags = ['mark']
+    return bleach.clean(result, tags=set(allowed_tags))
