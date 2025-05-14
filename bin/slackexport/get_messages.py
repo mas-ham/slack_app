@@ -4,6 +4,7 @@ Slackから投稿を取得する
 create 2025/05/09 hamada
 """
 import os
+import sqlite3
 import sys
 import datetime
 import time
@@ -22,15 +23,20 @@ from common import const, shared_service
 from common.logger.logger import Logger
 from app_common import app_shared_service
 from app_common.slack_service import SlackService
+from dataaccess.common import set_cond_model, set_sort_model
+from dataaccess.ext.slack_export_dataaccess import SlackExportDataaccess
+from dataaccess.general.channel_dataaccess import ChannelDataAccess
+from dataaccess.general.tr_channel_histories_dataaccess import TrChannelHistoriesDataAccess
 
 pd.options.display.float_format = '{:.6f}'.format
 
 
 class GetMessages:
-    def __init__(self, logger:Logger, root_dir, bin_dir):
+    def __init__(self, logger:Logger, root_dir, bin_dir, conn):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
+        self.conn = conn
 
         # 設定ファイル
         self.conf = app_shared_service.get_conf(self.root_dir)['get_messages']
@@ -52,26 +58,46 @@ class GetMessages:
         Returns:
 
         """
-        # public
-        if int(self.conf['is_export_public']):
-            channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'public')
-            if int(self.conf['is_get_messages']):
-                self._get_slack_messages(channel_list_path, history_list_path, replies_list_path)
-            self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PUBLIC_DIR)
 
-        # private
-        if int(self.conf['is_export_private']):
-            channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'private')
-            if int(self.conf['is_get_messages']):
-                self._get_slack_messages(channel_list_path, history_list_path, replies_list_path)
-            self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PRIVATE_DIR)
+        # 期間を取得
+        oldest, latest = self.get_term()
 
-        # im
-        if int(self.conf['is_export_im']):
-            channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'im')
-            if int(self.conf['is_get_messages']):
-                self._get_slack_messages(channel_list_path, history_list_path, replies_list_path)
-            self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.IM_DIR)
+        cursor = self.conn.cursor()
+        # トランザクションを開始
+        self.conn.execute('BEGIN TRANSACTION')
+
+        try:
+
+            # public
+            if int(self.conf['is_export_public']):
+                channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'public')
+                if int(self.conf['is_get_messages']):
+                    self._get_slack_messages(cursor, const.PUBLIC_CHANNEL, oldest, latest)
+                # FIXME: Excel作成は後でまとめてにする
+                self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PUBLIC_DIR)
+
+            # private
+            if int(self.conf['is_export_private']):
+                channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'private')
+                if int(self.conf['is_get_messages']):
+                    self._get_slack_messages(cursor, const.PRIVATE_CHANNEL, oldest, latest)
+                # FIXME: Excel作成は後でまとめてにする
+                self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PRIVATE_DIR)
+
+            # im
+            if int(self.conf['is_export_im']):
+                channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'im')
+                if int(self.conf['is_get_messages']):
+                    self._get_slack_messages(cursor, const.IM_CHANNEL, oldest, latest)
+                # FIXME: Excel作成は後でまとめてにする
+                self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.IM_DIR)
+
+            # コミット
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            self.conn.rollback()
+            raise e
 
         # 設定ファイル更新
         # from_dateを前日に更新する
@@ -81,86 +107,66 @@ class GetMessages:
             app_shared_service.write_conf(self.root_dir, const.SETTINGS_FILENAME, json_data)
 
 
-    def _get_slack_messages(self, channel_list_path, history_list_path, replies_list_path):
+    def _get_slack_messages(self, cursor, channel_type, oldest, latest):
         """
         Slackからチャンネルタイプごとに投稿内容を取得
 
         Args:
-            channel_list_path:
-            history_list_path:
-            replies_list_path:
+            cursor:
+            channel_type:
+            oldest:
+            latest:
 
         Returns:
 
         """
 
         # 対象チャネルを取得
-        df_channel = pd.read_excel(channel_list_path, index_col=[0], names=('channel_id', 'channel_name', 'channel_type'))
+        # チャンネルの一覧を取得
+        cond = [set_cond_model.Condition('channel_type', channel_type)]
+        sort = [set_sort_model.OrderBy('channel_name')]
+        dataaccess = ChannelDataAccess(self.conn)
+        channel_list = dataaccess.select(cond, sort)
 
-        # 投稿情報、返信情報の取得
-        df_history, df_replies = self._get_history_and_replies(df_channel, history_list_path, replies_list_path)
+        history_list = []
+        for channel in channel_list:
+            # チャンネル単位で投稿内容、返信内容を取得
+            history_list_ = self.get_channel_messages(channel.channel_id, oldest, latest)
+            history_list.extend(history_list_)
 
-        # 投稿情報、返信情報の登録
-        df_history.to_excel(history_list_path, sheet_name=const.HISTORY_SHEET_NAME)
-        df_replies.to_excel(replies_list_path, sheet_name=const.REPLIES_SHEET_NAME)
+        # 投稿内容、返信内容の登録
+        dataaccess = SlackExportDataaccess(cursor)
+        for history_info in history_list:
+            history_params = (history_info['channel_id'], history_info['post_date'], history_info['post_user'], history_info['post_message'])
+            dataaccess.upsert_history(history_params)
+            # 登録されたID
+            if cursor.lastrowid:
+                channel_history_id = cursor.lastrowid
+            else:
+                # 既存のIDを取得
+                channel_history_id = self.get_channel_history_id_by_logical_pk(history_info['post_date'])
 
-
-    def _get_history_and_replies(self, df_channel, history_list_path, replies_list_path):
-        """
-        Slackから投稿内容と返信内容を取得
-
-        Args:
-            df_channel:
-            history_list_path:
-            replies_list_path:
-
-        Returns:
-
-        """
-
-        # 既存の情報を取得
-        df_history = pd.read_excel(history_list_path, index_col=[0], names=('index', 'channel_id', 'history_id', 'post_date', 'post_message', 'post_user'))
-        df_replies = pd.read_excel(replies_list_path, index_col=[0], names=('index', 'channel_id', 'history_id', 'replies_id', 'reply_date', 'reply_message', 'reply_user'))
-
-        df_history['history_id'] = df_history['history_id'].astype(float).astype(str)
-        df_replies['history_id'] = df_replies['history_id'].astype(float).astype(str)
-        df_replies['replies_id'] = df_replies['replies_id'].astype(float).astype(str)
-
-        # Slackから投稿内容を取得
-        history_dict = []
-        replies_dict = []
-        for channel_id in df_channel['channel_id']:
-            self.get_channel_messages(channel_id, history_dict, replies_dict)
-
-    #    if not history_dict and not replies_dict:
-    #        return df_history, df_replies
-
-        # 既存データと取得データとをマージ
-        df_history_merge = pd.concat([df_history, pd.DataFrame(history_dict)])
-        df_replies_merge = pd.concat([df_replies, pd.DataFrame(replies_dict)])
-        # 重複削除
-        df_history_merge.drop_duplicates(keep='last', subset=['channel_id', 'post_date', 'post_message'], inplace=True)
-        df_replies_merge.drop_duplicates(keep='last', subset=['channel_id', 'reply_date', 'reply_message'], inplace=True)
-        # 主キー項目がNaNのデータを除去して返却
-        return df_history_merge, df_replies_merge
-    #    return df_history_merge.dropna(axis=0, how='all', subset=['channel_id', 'history_id']), df_replies_merge.dropna(axis=0, how='all', subset=['channel_id', 'history_id', 'replies_id'])
+            # 返信内容
+            for reply_info in history_info['reply_list']:
+                reply_params = (channel_history_id, reply_info['reply_date'], reply_info['reply_user'], reply_info['reply_message'])
+                dataaccess.upsert_reply(reply_params)
 
 
-    def get_channel_messages(self, channel_id, history_dict, replies_dict):
+    def get_channel_messages(self, channel_id, oldest, latest):
         """
         Slackのチャネル内の投稿内容と返信内容を取得
 
         Args:
             channel_id:
-            history_dict:
-            replies_dict:
+            oldest:
+            latest:
 
         Returns:
 
         """
-
+        history_list = []
+        reply_list = []
         # 投稿一覧を取得
-        oldest, latest = self.get_term()
         time.sleep(1)
         result_history = self.slack_service.get_history(channel_id, limit=1000, oldest=oldest, latest=latest)
 
@@ -173,16 +179,19 @@ class GetMessages:
         while True:
             # 返信内容を取得
             for data_history in conversation_history:
+                history_record = {}
                 # slackから取得した情報を追加
                 try:
                     post_date = datetime.datetime.fromtimestamp(int(str(data_history['ts']).split('.')[0]))
-                    history_dict.append({'channel_id':channel_id, 'history_id':float(data_history['ts']), 'post_date':post_date, 'post_message':data_history['text'], 'post_user':data_history['user']})
+                    history_record = {'channel_id': channel_id, 'post_date':float(data_history['ts']), 'post_user': data_history['user'], 'post_message': data_history['text']}
+                    # history_list.append({'channel_id': channel_id, 'post_date':float(data_history['ts']), 'post_user': data_history['user'], 'post_message': data_history['text']})
                 except Exception as e:
                     shared_service.print_except(e, self.logger)
                     self.logger.debug(','.join(f'{key}:{value}' for key, value in data_history.items()))
                     pass
 
                 # 返信内容取得
+                # 1分間のリクエスト数に制限があるため待機
                 time.sleep(1.2)
                 result_replies = self.slack_service.get_replies(channel_id, data_history['ts'])
 
@@ -201,11 +210,14 @@ class GetMessages:
                     # slackから取得した情報を追加
                     try:
                         reply_date = datetime.datetime.fromtimestamp(int(str(data_replies['ts']).split('.')[0]))
-                        replies_dict.append({'channel_id':channel_id, 'history_id':float(data_history['ts']), 'replies_id':float(data_replies['ts']), 'reply_date':reply_date, 'reply_message':data_replies['text'], 'reply_user':data_replies['user']})
+                        reply_list.append({'reply_date': float(data_replies['ts']), 'reply_user': data_replies['user'], 'reply_message': data_replies['text']})
                     except Exception as e:
                         shared_service.print_except(e, self.logger)
                         self.logger.debug(','.join(f'{key}:{value}' for key, value in data_replies.items()))
                         pass
+
+                history_record['reply_list'] = reply_list
+                history_list.append(history_record)
 
             if not result_history['has_more']:
                 break
@@ -218,6 +230,8 @@ class GetMessages:
                 break
 
             conversation_history = result_history['messages']
+
+        return history_list
 
 
     def get_term(self):
@@ -449,4 +463,12 @@ class GetMessages:
                                 cell.value = new_text
 
             wb.save(output_file)
+
+    def get_channel_history_id_by_logical_pk(self, post_date):
+        cond = [set_cond_model.Condition('post_date', post_date)]
+        dataaccess = TrChannelHistoriesDataAccess(self.conn)
+        results = dataaccess.select(conditions=cond)
+
+        return results[0].channel_id
+
 

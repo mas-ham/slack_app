@@ -1,7 +1,7 @@
 """
 dataaccess：auth_user
 
-create 2025/05/13 hamada
+create 2025/05/14 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.auth_user import AuthUser
@@ -37,16 +37,17 @@ class AuthUserDataAccess(BaseDataAccess):
         return [AuthUser(row['user_id'], row['channel_id']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, ) -> AuthUser | None:
+    def select_by_pk(self, user_id) -> AuthUser | None:
         """
         Select_by_PK
 
         Args:
+            user_id:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, )
+        results = self.execute_select_by_pk(TABLE_ID, user_id = user_id)
         if results.empty:
             return None
         return AuthUser(results[0]['user_id'], results[0]['channel_id'])
@@ -106,12 +107,13 @@ class AuthUserDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: AuthUser, ):
+    def update(self, entity: AuthUser, user_id):
         """
         Update
 
         Args:
             entity:
+            user_id:
 
         Returns:
 
@@ -120,15 +122,16 @@ class AuthUserDataAccess(BaseDataAccess):
             'user_id': entity.user_id,
             'channel_id': entity.channel_id,
         }
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, user_id = user_id)
 
 
-    def update_selective(self, entity: AuthUser, ):
+    def update_selective(self, entity: AuthUser, user_id):
         """
         Update selective
 
         Args:
             entity:
+            user_id:
 
         Returns:
 
@@ -139,7 +142,7 @@ class AuthUserDataAccess(BaseDataAccess):
         if entity.channel_id is not None:
             update_info['channel_id'] = entity.channel_id
 
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, user_id = user_id)
 
 
     def delete(self, key: AuthUser):
@@ -161,14 +164,27 @@ class AuthUserDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, ):
+    def delete_by_pk(self, user_id):
         """
         Delete_by_PK
+
+        Args:
+            user_id:
+
+        Returns:
+
+        """
+        self.execute_delete(TABLE_ID, user_id = user_id)
+
+
+    def delete_all(self):
+        """
+        Delete_All
 
         Args:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, )
+        self.execute_delete(TABLE_ID)
 

@@ -1,7 +1,7 @@
 """
 Entity：auth_user
 
-create 2025/05/13 hamada
+create 2025/05/14 hamada
 """
 import dataclasses
 

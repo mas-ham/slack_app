@@ -1,0 +1,11 @@
+.idea/
+db/*.db
+log/*.log
+log/exception/*.log
+log/rotate/*.*
+bin/result/*.json
+bin/result/*.tsv
+bin/result/*.txt
+tsv/**/*.tsv
+*__pycache__*
+!.gitkeep

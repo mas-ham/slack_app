@@ -6,6 +6,11 @@ SETTINGS_FILENAME = 'settings.json'
 # 絵文字ファイル
 EMOJI_FILENAME = 'emoji.txt'
 
+# チャンネルタイプ
+PUBLIC_CHANNEL = 'public_channel'
+PRIVATE_CHANNEL = 'private_channel'
+IM_CHANNEL = 'im_channel'
+
 # データファイル
 # チャンネル
 PUBLIC_CHANNEL_FILENAME = 'public_channel_list.xlsx'

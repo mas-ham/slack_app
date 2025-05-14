@@ -12,7 +12,7 @@ SQL_GET_POSTER_LIST = (
     FROM
       slack_user              slack
       LEFT JOIN search_user   search
-        ON  search.user_id         = slack.user_id
+        ON  search.slack_user_id   = slack.slack_user_id
     WHERE
       display_flg                  = 1
     ORDER BY
@@ -40,6 +40,8 @@ SQL_GET_CHANNEL_LIST = (
         channel.channel_name
     """
 )
+
+
 class SlackSearchDataaccess:
     def __init__(self, conn):
         self.conn = conn

@@ -1,7 +1,7 @@
 """
 dataaccess：slack_user
 
-create 2025/05/13 hamada
+create 2025/05/14 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.slack_user import SlackUser
@@ -40,16 +40,17 @@ class SlackUserDataAccess(BaseDataAccess):
         return [SlackUser(row['slack_user_id'], row['user_id'], row['user_name'], row['icon'], row['delete_flg']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, ) -> SlackUser | None:
+    def select_by_pk(self, slack_user_id) -> SlackUser | None:
         """
         Select_by_PK
 
         Args:
+            slack_user_id:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, )
+        results = self.execute_select_by_pk(TABLE_ID, slack_user_id = slack_user_id)
         if results.empty:
             return None
         return SlackUser(results[0]['slack_user_id'], results[0]['user_id'], results[0]['user_name'], results[0]['icon'], results[0]['delete_flg'])
@@ -115,12 +116,13 @@ class SlackUserDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: SlackUser, ):
+    def update(self, entity: SlackUser, slack_user_id):
         """
         Update
 
         Args:
             entity:
+            slack_user_id:
 
         Returns:
 
@@ -132,15 +134,16 @@ class SlackUserDataAccess(BaseDataAccess):
             'icon': entity.icon,
             'delete_flg': entity.delete_flg,
         }
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, slack_user_id = slack_user_id)
 
 
-    def update_selective(self, entity: SlackUser, ):
+    def update_selective(self, entity: SlackUser, slack_user_id):
         """
         Update selective
 
         Args:
             entity:
+            slack_user_id:
 
         Returns:
 
@@ -157,7 +160,7 @@ class SlackUserDataAccess(BaseDataAccess):
         if entity.delete_flg is not None:
             update_info['delete_flg'] = entity.delete_flg
 
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, slack_user_id = slack_user_id)
 
 
     def delete(self, key: SlackUser):
@@ -185,14 +188,27 @@ class SlackUserDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, ):
+    def delete_by_pk(self, slack_user_id):
         """
         Delete_by_PK
+
+        Args:
+            slack_user_id:
+
+        Returns:
+
+        """
+        self.execute_delete(TABLE_ID, slack_user_id = slack_user_id)
+
+
+    def delete_all(self):
+        """
+        Delete_All
 
         Args:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, )
+        self.execute_delete(TABLE_ID)
 

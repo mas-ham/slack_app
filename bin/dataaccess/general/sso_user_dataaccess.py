@@ -1,7 +1,7 @@
 """
 dataaccess：sso_user
 
-create 2025/05/13 hamada
+create 2025/05/14 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.sso_user import SsoUser
@@ -38,16 +38,17 @@ class SsoUserDataAccess(BaseDataAccess):
         return [SsoUser(row['pc_user'], row['user_id'], row['is_admin']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, ) -> SsoUser | None:
+    def select_by_pk(self, pc_user) -> SsoUser | None:
         """
         Select_by_PK
 
         Args:
+            pc_user:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, )
+        results = self.execute_select_by_pk(TABLE_ID, pc_user = pc_user)
         if results.empty:
             return None
         return SsoUser(results[0]['pc_user'], results[0]['user_id'], results[0]['is_admin'])
@@ -109,12 +110,13 @@ class SsoUserDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: SsoUser, ):
+    def update(self, entity: SsoUser, pc_user):
         """
         Update
 
         Args:
             entity:
+            pc_user:
 
         Returns:
 
@@ -124,15 +126,16 @@ class SsoUserDataAccess(BaseDataAccess):
             'user_id': entity.user_id,
             'is_admin': entity.is_admin,
         }
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, pc_user = pc_user)
 
 
-    def update_selective(self, entity: SsoUser, ):
+    def update_selective(self, entity: SsoUser, pc_user):
         """
         Update selective
 
         Args:
             entity:
+            pc_user:
 
         Returns:
 
@@ -145,7 +148,7 @@ class SsoUserDataAccess(BaseDataAccess):
         if entity.is_admin is not None:
             update_info['is_admin'] = entity.is_admin
 
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, pc_user = pc_user)
 
 
     def delete(self, key: SsoUser):
@@ -169,14 +172,27 @@ class SsoUserDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, ):
+    def delete_by_pk(self, pc_user):
         """
         Delete_by_PK
+
+        Args:
+            pc_user:
+
+        Returns:
+
+        """
+        self.execute_delete(TABLE_ID, pc_user = pc_user)
+
+
+    def delete_all(self):
+        """
+        Delete_All
 
         Args:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, )
+        self.execute_delete(TABLE_ID)
 

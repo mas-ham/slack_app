@@ -28,6 +28,9 @@ SQL_UPDATE = 'UPDATE {} SET {} WHERE {}'
 # Delete
 SQL_DELETE = 'DELETE FROM {} WHERE {}'
 
+# Delete All
+SQL_DELETE_ALL = 'DELETE FROM {}'
+
 # Autoincrement値を取得
 SQL_GET_LAST_ID = 'SELECT last_insert_rowid()'
 
@@ -224,6 +227,25 @@ class BaseDataAccess:
 
         cur = self.conn.cursor()
         cur.execute(query, tuple(kwargs.values()))
+        cur.close()
+
+
+    def execute_delete_all(self, table_id):
+        """
+        Delete
+
+        Args:
+            table_id:
+
+        Returns:
+
+        """
+        query = SQL_DELETE_ALL.format(table_id)
+        if IS_EXPORT_SQL_LOG:
+            _write_sql_log(query)
+
+        cur = self.conn.cursor()
+        cur.execute(query)
         cur.close()
 
 

@@ -1,7 +1,7 @@
 """
 dataaccess：search_channel
 
-create 2025/05/13 hamada
+create 2025/05/14 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.search_channel import SearchChannel
@@ -39,16 +39,18 @@ class SearchChannelDataAccess(BaseDataAccess):
         return [SearchChannel(row['settings_user_id'], row['channel_id'], row['display_flg'], row['default_check_flg']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, ) -> SearchChannel | None:
+    def select_by_pk(self, settings_user_id, channel_id) -> SearchChannel | None:
         """
         Select_by_PK
 
         Args:
+            settings_user_id:
+            channel_id:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, )
+        results = self.execute_select_by_pk(TABLE_ID, settings_user_id = settings_user_id, channel_id = channel_id)
         if results.empty:
             return None
         return SearchChannel(results[0]['settings_user_id'], results[0]['channel_id'], results[0]['display_flg'], results[0]['default_check_flg'])
@@ -112,12 +114,14 @@ class SearchChannelDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: SearchChannel, ):
+    def update(self, entity: SearchChannel, settings_user_id, channel_id):
         """
         Update
 
         Args:
             entity:
+            settings_user_id:
+            channel_id:
 
         Returns:
 
@@ -128,15 +132,17 @@ class SearchChannelDataAccess(BaseDataAccess):
             'display_flg': entity.display_flg,
             'default_check_flg': entity.default_check_flg,
         }
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, settings_user_id = settings_user_id, channel_id = channel_id)
 
 
-    def update_selective(self, entity: SearchChannel, ):
+    def update_selective(self, entity: SearchChannel, settings_user_id, channel_id):
         """
         Update selective
 
         Args:
             entity:
+            settings_user_id:
+            channel_id:
 
         Returns:
 
@@ -151,7 +157,7 @@ class SearchChannelDataAccess(BaseDataAccess):
         if entity.default_check_flg is not None:
             update_info['default_check_flg'] = entity.default_check_flg
 
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, settings_user_id = settings_user_id, channel_id = channel_id)
 
 
     def delete(self, key: SearchChannel):
@@ -177,14 +183,28 @@ class SearchChannelDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, ):
+    def delete_by_pk(self, settings_user_id, channel_id):
         """
         Delete_by_PK
+
+        Args:
+            settings_user_id:
+            channel_id:
+
+        Returns:
+
+        """
+        self.execute_delete(TABLE_ID, settings_user_id = settings_user_id, channel_id = channel_id)
+
+
+    def delete_all(self):
+        """
+        Delete_All
 
         Args:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, )
+        self.execute_delete(TABLE_ID)
 

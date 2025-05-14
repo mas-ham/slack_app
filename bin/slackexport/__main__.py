@@ -7,7 +7,7 @@ import os
 import sys
 import pprint
 
-from common import shared_service
+from common import shared_service, sql_shared_service
 from common.logger.logger import Logger
 
 
@@ -37,37 +37,40 @@ def execute(logger: Logger, root_dir, bin_dir):
 
     shared_service.start_log(logger, params['application'], is_print=True)
 
-    match params['application']:
-        case 'get_messages':
-            # メッセージ取得
-            # パフォーマンスを考慮し関数内でimport
-            from slackexport.get_messages import GetMessages
-            service = GetMessages(
-                logger,
-                root_dir,
-                bin_dir,
-            )
-            service.main()
+    with sql_shared_service.get_connection(root_dir) as conn:
+        match params['application']:
+            case 'get_messages':
+                # メッセージ取得
+                # パフォーマンスを考慮し関数内でimport
+                from slackexport.get_messages import GetMessages
+                service = GetMessages(
+                    logger,
+                    root_dir,
+                    bin_dir,
+                    conn,
+                )
+                service.main()
 
-            # 結果返却
-            # shared_service.result_return(root_dir, {'status': status, 'message': message, 'data': result_list})
+                # 結果返却
+                # shared_service.result_return(root_dir, {'status': status, 'message': message, 'data': result_list})
 
-        case 'get_masters':
-            # マスター情報取得
-            # パフォーマンスを考慮し関数内でimport
-            from slackexport.get_masterts import GetMasters
-            service = GetMasters(
-                logger,
-                root_dir,
-                bin_dir,
-            )
-            service.main()
+            case 'get_masters':
+                # マスター情報取得
+                # パフォーマンスを考慮し関数内でimport
+                from slackexport.get_masterts import GetMasters
+                service = GetMasters(
+                    logger,
+                    root_dir,
+                    bin_dir,
+                    conn,
+                )
+                service.main()
 
-            # 結果返却
-            # shared_service.result_return(root_dir, {'status': status, 'message': message, 'data': result_list})
+                # 結果返却
+                # shared_service.result_return(root_dir, {'status': status, 'message': message, 'data': result_list})
 
-        case _:
-            pass
+            case _:
+                pass
 
     shared_service.end_log(logger, params['application'], is_print=True)
 

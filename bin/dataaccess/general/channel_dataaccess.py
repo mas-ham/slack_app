@@ -1,7 +1,7 @@
 """
 dataaccess：channel
 
-create 2025/05/13 hamada
+create 2025/05/14 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.channel import Channel
@@ -38,16 +38,17 @@ class ChannelDataAccess(BaseDataAccess):
         return [Channel(row['channel_id'], row['channel_name'], row['channel_type']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, ) -> Channel | None:
+    def select_by_pk(self, channel_id) -> Channel | None:
         """
         Select_by_PK
 
         Args:
+            channel_id:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, )
+        results = self.execute_select_by_pk(TABLE_ID, channel_id = channel_id)
         if results.empty:
             return None
         return Channel(results[0]['channel_id'], results[0]['channel_name'], results[0]['channel_type'])
@@ -109,12 +110,13 @@ class ChannelDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: Channel, ):
+    def update(self, entity: Channel, channel_id):
         """
         Update
 
         Args:
             entity:
+            channel_id:
 
         Returns:
 
@@ -124,15 +126,16 @@ class ChannelDataAccess(BaseDataAccess):
             'channel_name': entity.channel_name,
             'channel_type': entity.channel_type,
         }
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, channel_id = channel_id)
 
 
-    def update_selective(self, entity: Channel, ):
+    def update_selective(self, entity: Channel, channel_id):
         """
         Update selective
 
         Args:
             entity:
+            channel_id:
 
         Returns:
 
@@ -145,7 +148,7 @@ class ChannelDataAccess(BaseDataAccess):
         if entity.channel_type is not None:
             update_info['channel_type'] = entity.channel_type
 
-        self.execute_update(TABLE_ID, update_info, )
+        self.execute_update(TABLE_ID, update_info, channel_id = channel_id)
 
 
     def delete(self, key: Channel):
@@ -169,14 +172,27 @@ class ChannelDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, ):
+    def delete_by_pk(self, channel_id):
         """
         Delete_by_PK
+
+        Args:
+            channel_id:
+
+        Returns:
+
+        """
+        self.execute_delete(TABLE_ID, channel_id = channel_id)
+
+
+    def delete_all(self):
+        """
+        Delete_All
 
         Args:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, )
+        self.execute_delete(TABLE_ID)
 

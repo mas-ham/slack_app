@@ -15,13 +15,11 @@ from dataaccess.ext import slack_search_dataaccess
 from slacksearch.models import SlackSearchModel, SlackDetailModel, SlackResultModel
 
 
-def get_poster_list(root_dir, bin_dir, conn):
+def get_poster_list(conn):
     """
     投稿者/返信者一覧を取得
 
     Args:
-        root_dir:
-        bin_dir:
         conn:
 
     Returns:
@@ -42,13 +40,11 @@ def get_poster_list(root_dir, bin_dir, conn):
     return poster_list
 
 
-def get_channel_list(root_dir, bin_dir, conn, channel_type):
+def get_channel_list(conn, channel_type):
     """
     チャンネル一覧を取得
 
     Args:
-        root_dir:
-        bin_dir:
         conn:
         channel_type:
 
@@ -56,31 +52,14 @@ def get_channel_list(root_dir, bin_dir, conn, channel_type):
 
     """
     dataaccess = slack_search_dataaccess.SlackSearchDataaccess(conn)
-    results = dataaccess.get_channel_list(const.PUBLIC_DIR)
+    results = dataaccess.get_channel_list(channel_type)
 
     channel_list = []
-
-    # 検索用ファイル
-    search_filename = os.path.join(root_dir, const.CONF_DIR, 'search', f'search_{channel_type}_channel_list.xlsx')
-    if os.path.isfile(search_filename):
-        df = pd.read_excel(search_filename, sheet_name=const.CHANNEL_SHEET_NAME).query('display_flg == True')
-        for _, row in df.iterrows():
-            channel_list.append({
-                'channel_name': row['channel_name'],
-                'checked': True if row['default_check_flg'] == True else False,
-            })
-    else:
-        # 検索用ファイルがない場合はマスタから取得する
-        search_filename = os.path.join(bin_dir, const.DATA_DIR, f'{channel_type}_channel_list.xlsx')
-        if not os.path.isfile(search_filename):
-            # マスタにも存在しない場合は空のリストを返却
-            return []
-        df = pd.read_excel(search_filename, sheet_name=const.CHANNEL_SHEET_NAME)
-        for _, row in df.iterrows():
-            channel_list.append({
-                'channel_name': row['channel_name'],
-                'checked': '',
-            })
+    for _, row in results.iterrows():
+        channel_list.append({
+            'channel_name': row['channel_name'],
+            'checked': row['default_check_flg'],
+        })
 
     return channel_list
 

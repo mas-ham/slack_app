@@ -8,19 +8,22 @@ import sys
 
 import requests
 from tkinter import messagebox
-import pandas as pd
 
 from common import const
 from common.logger.logger import Logger
 from app_common import app_shared_service
 from app_common.slack_service import SlackService
+from dataaccess.entity.channel import Channel
+from dataaccess.entity.slack_user import SlackUser
+from dataaccess.general import channel_dataaccess, slack_user_dataaccess
 
 
 class GetMasters:
-    def __init__(self, logger:Logger, root_dir, bin_dir):
+    def __init__(self, logger:Logger, root_dir, bin_dir, conn):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
+        self.conn = conn
 
         # SlackAPIトークンを取得
         token = app_shared_service.get_token()
@@ -40,19 +43,19 @@ class GetMasters:
 
         """
         # ユーザー情報を取得
-        df_user = self._get_user_list()
+        user_list = self._get_user_list()
         # チャンネル情報の取得
         # public、private、im、mpimと分けて取得する(レスポンスにtypeが返却されないため)
-        df_channel_public = self._get_channel_list('public_channel')
-        df_channel_private = self._get_channel_list('private_channel')
-        df_channel_im = self.get_im_channel_list(df_user)
+        public_channel_list = self._get_channel_list(const.PUBLIC_CHANNEL)
+        private_channel_list = self._get_channel_list(const.PRIVATE_CHANNEL)
+        im_channel_list = self._get_im_channel_list(user_list)
 
         # ユーザー情報の登録
-        df_user.to_excel(const.USER_FILENAME, sheet_name=const.USER_SHEET_NAME)
+        self._regist_user_list(user_list)
         # チャンネル情報の登録
-        df_channel_public.to_excel(const.PUBLIC_CHANNEL_FILENAME, sheet_name=const.CHANNEL_SHEET_NAME)
-        df_channel_private.to_excel(const.PRIVATE_CHANNEL_FILENAME, sheet_name=const.CHANNEL_SHEET_NAME)
-        df_channel_im.to_excel(const.IM_CHANNEL_FILENAME, sheet_name=const.CHANNEL_SHEET_NAME)
+        self._regist_channel_list(public_channel_list)
+        self._regist_channel_list(private_channel_list)
+        self._regist_channel_list(im_channel_list)
 
 
     def _get_user_list(self):
@@ -65,11 +68,11 @@ class GetMasters:
 
         # ユーザーリスト取得
         result = self.slack_service.get_user_list()
-        user_list = result['members']
+        slack_user_list = result['members']
 
         # slackから取得した情報を追加
-        user_dict = []
-        for data in user_list:
+        result_list = []
+        for data in slack_user_list:
             # アイコンダウンロード
             response = requests.get(data['profile']['image_24'])
             response.raise_for_status()
@@ -83,9 +86,9 @@ class GetMasters:
             with open(os.path.join(app_shared_service.get_icon_dir(self.bin_dir), filename), 'wb') as f:
                 f.write(response.content)
 
-            user_dict.append({'user_id':data['id'], 'user_name':data['profile']['real_name'], 'user_display_name':displayname, 'icon':filename, 'delete_flg':data['deleted']})
+            result_list.append({'user_id':data['id'], 'user_name':data['profile']['real_name'], 'user_display_name':displayname, 'icon':filename, 'delete_flg':data['deleted']})
 
-        return pd.DataFrame(user_dict)
+        return result_list
 
 
     def _get_channel_list(self, channel_type):
@@ -104,16 +107,14 @@ class GetMasters:
         channel_list = result['channels']
 
         # slackから取得した情報を追加
-        channel_dict = []
-        channel_name_key = 'user' if channel_type == 'im' else 'name'
-
+        result_list = []
         for data in channel_list:
-            channel_dict.append({'channel_id': data['id'], 'channel_name': data[channel_name_key], 'channel_type': channel_type})
+            result_list.append({'channel_id': data['id'], 'channel_name': data['name'], 'channel_type': channel_type})
 
-        return pd.DataFrame(channel_dict)
+        return result_list
 
 
-    def get_im_channel_list(self, df_user):
+    def _get_im_channel_list(self, df_user):
         """
        Slackからチャンネル情報を取得(im)
 
@@ -129,11 +130,65 @@ class GetMasters:
         channel_list = result['channels']
 
         # slackから取得した情報を追加
-        channel_dict = []
+        result_list = []
         for data in channel_list:
             # ユーザー名を取得
-            user_name = df_user.query('user_id == "' + data['user'] + '"').loc[0:, 'user_display_name']
-            channel_dict.append({'channel_id':data['id'], 'channel_name':user_name, 'channel_type':'im'})
+            # user_name = df_user.query('user_id == "' + data['user'] + '"').loc[0:, 'user_display_name']
+            # channel_dict.append({'channel_id':data['id'], 'channel_name':user_name, 'channel_type':'im'})
+            result_list.append({'channel_id':data['id'], 'channel_name':data['user'], 'channel_type':'im'})
 
-        return pd.DataFrame(channel_dict)
+        return result_list
 
+
+    def _regist_user_list(self, user_list):
+        """
+        ユーザー情報を登録
+
+        Args:
+            user_list:
+
+        Returns:
+
+        """
+        # 登録内容
+        entity_list = []
+        for row in user_list:
+            entity = SlackUser(
+                slack_user_id=row['user_id'],
+                user_id = row['user_display_name'],
+                user_name = row['user_name'],
+                icon = row['icon'],
+                delete_flg = row['delete_flg'],
+            )
+            entity_list.append(entity)
+
+        # Delete - Insert
+        dataaccess = slack_user_dataaccess.SlackUserDataAccess(self.conn)
+        dataaccess.delete_all()
+        dataaccess.insert_many(entity_list)
+
+
+    def _regist_channel_list(self, channel_list):
+        """
+        チャンネル情報を登録
+
+        Args:
+            channel_list:
+
+        Returns:
+
+        """
+        # 登録内容
+        entity_list = []
+        for row in channel_list:
+            entity = Channel(
+                channel_id=row['channel_id'],
+                channel_name = row['channel_name'],
+                channel_type = row['channel_type'],
+            )
+            entity_list.append(entity)
+
+        # Delete - Insert
+        dataaccess = channel_dataaccess.ChannelDataAccess(self.conn)
+        dataaccess.delete_all()
+        dataaccess.insert_many(entity_list)

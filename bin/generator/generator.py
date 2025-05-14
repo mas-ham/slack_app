@@ -98,6 +98,7 @@ def _create_dataaccess(root_dir, table_id, column_list, pk_list, all_list):
     s.extend(_create_dataaccess_update_selective(table_id, column_list, pk_list, all_list))
     s.extend(_create_dataaccess_delete(table_id, column_list, pk_list, all_list))
     s.extend(_create_dataaccess_delete_by_pk(table_id, column_list, pk_list, all_list))
+    s.extend(_create_dataaccess_delete_all(table_id, column_list, pk_list, all_list))
 
     export_dir = os.path.join(root_dir, 'dataaccess', 'general')
     os.makedirs(export_dir, exist_ok=True)
@@ -443,6 +444,30 @@ def _create_dataaccess_delete_by_pk(table_id, column_list, pk_list, all_list):
     s.append(f'')
     s.append(f'        """')
     s.append(f'        self.execute_delete(TABLE_ID, {pk_param})')
+    s.append(f'')
+    s.append(f'')
+
+    return s
+
+def _create_dataaccess_delete_all(table_id, column_list, pk_list, all_list):
+    camel_table_id = _convert_camel(table_id)
+    date = datetime.datetime.now().strftime('%Y/%m/%d')
+    pk_params = []
+    for column_id in pk_list:
+        pk_params.append(f'{column_id} = {column_id}')
+    pk_param = ', '.join(pk_params)
+    s = list()
+    # Delete_by_PK
+    s.append(f'    def delete_all(self):')
+    s.append(f'        """')
+    s.append(f'        Delete_All')
+    s.append(f'')
+    s.append(f'        Args:')
+    s.append(f'')
+    s.append(f'        Returns:')
+    s.append(f'')
+    s.append(f'        """')
+    s.append(f'        self.execute_delete(TABLE_ID)')
     s.append(f'')
     s.append(f'')
 
