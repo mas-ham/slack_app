@@ -15,8 +15,7 @@ import openpyxl
 from openpyxl.styles import Font
 from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Alignment, PatternFill
-from openpyxl.styles.differential import DifferentialStyle
-from openpyxl.formatting.rule import Rule
+from openpyxl.formatting.rule import FormulaRule
 from openpyxl.drawing.image import Image
 
 from common import const, shared_service
@@ -72,27 +71,18 @@ class GetMessages:
 
             # public
             if int(self.conf['is_export_public']):
-                channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'public')
                 if int(self.conf['is_get_messages']):
                     self._get_slack_messages(cursor, const.PUBLIC_CHANNEL, oldest, latest)
-                # FIXME: Excel作成は後でまとめてにする
-                # self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PUBLIC_DIR)
 
             # private
             if int(self.conf['is_export_private']):
-                channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'private')
                 if int(self.conf['is_get_messages']):
                     self._get_slack_messages(cursor, const.PRIVATE_CHANNEL, oldest, latest)
-                # FIXME: Excel作成は後でまとめてにする
-                # self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.PRIVATE_DIR)
 
             # im
             if int(self.conf['is_export_im']):
-                channel_list_path, history_list_path, replies_list_path = app_shared_service.get_datafile(self.bin_dir, 'im')
                 if int(self.conf['is_get_messages']):
                     self._get_slack_messages(cursor, const.IM_CHANNEL, oldest, latest)
-                # FIXME: Excel作成は後でまとめてにする
-                # self._create_slack_messages(channel_list_path, history_list_path, replies_list_path, const.IM_DIR)
 
             # コミット
             self.conn.commit()
@@ -142,7 +132,12 @@ class GetMessages:
         # 投稿内容、返信内容の登録
         dataaccess = SlackExportDataaccess(cursor)
         for history_info in history_list:
-            history_params = (history_info['channel_id'], history_info['post_date'], history_info['post_user'], history_info['post_message'])
+            history_params = {
+                'channel_id': history_info['channel_id'],
+                'post_date': history_info['post_date'],
+                'post_slack_user_id': history_info['post_user'],
+                'post_message': history_info['post_message']
+            }
             dataaccess.upsert_history(history_params)
             # 登録されたID
             if cursor.lastrowid:
@@ -153,7 +148,12 @@ class GetMessages:
 
             # 返信内容
             for reply_info in history_info['reply_list']:
-                reply_params = (channel_history_id, reply_info['reply_date'], reply_info['reply_user'], reply_info['reply_message'])
+                reply_params = {
+                    'channel_history_id': channel_history_id,
+                    'reply_date': reply_info['reply_date'],
+                    'reply_slack_user_id': reply_info['reply_user'],
+                    'reply_message': reply_info['reply_message']
+                }
                 dataaccess.upsert_reply(reply_params)
 
 
@@ -187,7 +187,6 @@ class GetMessages:
                 history_record = {}
                 # slackから取得した情報を追加
                 try:
-                    post_date = datetime.datetime.fromtimestamp(int(str(data_history['ts']).split('.')[0]))
                     history_record = {'channel_id': channel_id, 'post_date':float(data_history['ts']), 'post_user': data_history['user'], 'post_message': data_history['text']}
                     # history_list.append({'channel_id': channel_id, 'post_date':float(data_history['ts']), 'post_user': data_history['user'], 'post_message': data_history['text']})
                 except Exception as e:
@@ -214,7 +213,6 @@ class GetMessages:
 
                     # slackから取得した情報を追加
                     try:
-                        reply_date = datetime.datetime.fromtimestamp(int(str(data_replies['ts']).split('.')[0]))
                         reply_list.append({'reply_date': float(data_replies['ts']), 'reply_user': data_replies['user'], 'reply_message': data_replies['text']})
                     except Exception as e:
                         shared_service.print_except(e, self.logger)
@@ -288,176 +286,172 @@ class GetMessages:
         # チャンネルごとにExcelファイルを生成
         for channel in channel_list:
             self.logger.info(channel.channel_name, is_print=True)
+
+            # データを取得
             cursor = self.conn.cursor()
             dataaccess = SlackExportDataaccess(cursor)
-            message_list = dataaccess.get_slack_messages((channel.channel_type, channel.channel_name))
+            results = dataaccess.get_slack_messages({'channel_type': channel.channel_type, 'channel_name': channel.channel_name})
 
-            output_file = os.path.join(self.root_dir, const.EXPORT_DIR, channel.channel_type, f'{channel.channel_name}.xlsx')
-            message_list.to_excel(output_file, sheet_name=channel.channel_name, index=False)
+            # Excel出力用に整形
+            message_list = []
+            history_id_list = []
+            no = 1
+            for _, row in results.iterrows():
+                message_list.append({
+                    'no': no,
+                    'post_icon': '' if row['channel_history_id'] in history_id_list else row['post_name'],
+                    'post_name': row['post_name'],
+                    'post_date': row['post_date'],
+                    'post_message': '' if row['channel_history_id'] in history_id_list else row['post_message'] ,
+                    'reply_icon': row['reply_name'],
+                    'reply_name': row['reply_name'],
+                    'reply_date': row['reply_date'],
+                    'reply_message': row['reply_message'],
+                })
+                if not row['channel_history_id'] in history_id_list:
+                    history_id_list.append(row['channel_history_id'])
+                    no += 1
 
-            self._format(output_file, channel.channel_name)
-            # # フォーマット
-            # wb = openpyxl.load_workbook(output_file)
-            # ws = wb.worksheets[0]
-            #
-            # ws.sheet_view.showGridLines = False
-            # ws.column_dimensions['A'].width = 10
-            # ws.column_dimensions['B'].width = 5
-            # ws.column_dimensions['C'].width = 15
-            # ws.column_dimensions['D'].width = 20
-            # ws.column_dimensions['E'].width = 60
-            # ws.column_dimensions['F'].width = 5
-            # ws.column_dimensions['G'].width = 15
-            # ws.column_dimensions['H'].width = 20
-            # ws.column_dimensions['I'].width = 60
-            #
-            # # 罫線
-            # side = Side(style='thin', color='000000')
-            # border_outline = Border(top=side, bottom=side, left=side, right=side)
-            # border_with_top = Border(top=side, bottom=None, left=side, right=side)
-            # border_side = Border(top=None, bottom=None, left=side, right=side)
-            # # border_none_bottom = Border(top=side, bottom=None, left=side, right=side)
-            # border_top = Border(top=side)
-            #
-            # # ヘッダ背景色
-            # fill_header = PatternFill(patternType='solid', fgColor='9FE2BF')
-            #
-            # # フォーマット
-            # font_base = Font(name='Meiryo UI', size=9)
-            # empty_font = Font(color='FFFFFF')
-            #
-            # # ヘッダのフォーマット
-            # for col in ws.iter_cols(min_col = 1, max_col = 9, min_row = 1, max_row = 1):
-            #     col.border = border_outline
-            #     col.fill = fill_header
-            #
-            # # 明細行のフォーマット
-            # row_index = 2
-            # no_val = 0
-            # bef_post_user = ''
-            # bef_post_date = ''
-            #
-            # for row in ws.iter_rows(min_row = 2, max_row = len(message_list) + 1, min_col = 1, max_col = 9):
-            #     for cell in row:
-            #         cell.border = border_outline
-            #
-            #     # 書式設定
-            #     ws.cell(row=row_index, column=1).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=2).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=3).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=4).alignment = Alignment(horizontal='center', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=5).alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-            #     ws.cell(row=row_index, column=6).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=7).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=8).alignment = Alignment(horizontal='center', vertical='top', wrap_text=False)
-            #     ws.cell(row=row_index, column=9).alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-            #
-            #     if bef_post_user == ws.cell(row=row_index, column=3).value \
-            #             and bef_post_date == ws.cell(row=row_index, column=4).value:
-            #         # 前行と投稿者、投稿日が同じ場合
-            #         # アイコン、メッセージをクリア
-            #         ws.cell(row=row_index, column=1).value = None
-            #         ws.cell(row=row_index, column=5).value = None
-            #     else:
-            #         # Noをインクリメント
-            #         no_val += 1
-            #
-            #         bef_post_user = ws.cell(row=row_index, column=3).value
-            #         bef_post_date = ws.cell(row=row_index, column=4).value
-            #
-            #     # Noの設定
-            #     ws.cell(row=row_index, column=1).value = no_val
-            #
-            #     # 罫線の設定
-            #     # ws.cell(row=row_index, column=1).border = border_outline
-            #     ws.cell(row=row_index, column=6).border = border_outline
-            #     ws.cell(row=row_index, column=7).border = border_outline
-            #     ws.cell(row=row_index, column=8).border = border_outline
-            #     ws.cell(row=row_index, column=9).border = border_outline
-            #
-            #     # 投稿者アイコン
-            #     icon_name = str(ws.cell(row=row_index, column=2).value)
-            #     img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), icon_name)
-            #     if os.path.exists(img_path):
-            #         ws.cell(row=row_index, column=2).value = None
-            #         img = Image(img_path)
-            #         ws.add_image(img, ws.cell(row=row_index, column=2).coordinate)
-            #
-            #     # 返信者アイコン
-            #     icon_name = str(ws.cell(row=row_index, column=6).value)
-            #     img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), icon_name)
-            #     if os.path.exists(img_path):
-            #         ws.cell(row=row_index, column=6).value = None
-            #         img = Image(img_path)
-            #         ws.add_image(img, ws.cell(row=row_index, column=6).coordinate)
-            #
-            #     row_index += 1
-            #
-            # # 最下部の罫線
-            # ws.cell(row=row_index, column=1).border = border_top
-            # ws.cell(row=row_index, column=2).border = border_top
-            # ws.cell(row=row_index, column=3).border = border_top
-            # ws.cell(row=row_index, column=4).border = border_top
-            # ws.cell(row=row_index, column=5).border = border_top
-            #
-            # # フォーマット
-            # for row in ws:
-            #     for cell in row:
-            #         ws[cell.coordinate].font = font_base
-            #         # if 'K' in cell.coordinate:
-            #         #     cell.font = empty_font
-            #
-            # # 条件付き書式
-            # # dxf = DifferentialStyle(border=border_side, font=empty_font)
-            # # r = Rule(type='expression', dxf=dxf, stopIfTrue=True)
-            # # r.formula = ['=INDIRECT(ADDRESS(ROW(), 11)) = "1"']
-            # # ws.conditional_formatting.add('B2:F' + str(row_index - 1), r)
-            # #
-            # # dxf = DifferentialStyle(border=border_with_top)
-            # # r = Rule(type='expression', dxf=dxf, stopIfTrue=True)
-            # # r.formula = ['=INDIRECT(ADDRESS(ROW(), 11)) = "0"']
-            # # ws.conditional_formatting.add('B2:F' + str(row_index - 1), r)
-            #
-            # # オートフィルタ
-            # ws.auto_filter.ref = ws.dimensions
-            # # ウィンドウ枠の固定
-            # ws.freeze_panes = 'B2'
-            #
-            # # 置換
-            # # 置換する文字列を指定
-            # bef_str_list = []
-            # aft_str_list = []
-            #
-            # # # ユーザー
-            # # for user_idx in range(len(df_user)):
-            # #     user = df_user.loc[user_idx]
-            # #     bef_str_list.append(user['user_id'])
-            # #     aft_str_list.append(user['user_display_name'])
-            # #
-            # # # 絵文字
-            # # with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
-            # #     for data in f.readlines():
-            # #         data = data.replace('\n', '')
-            # #         bef_str_list.append(data.split()[0])
-            # #         aft_str_list.append(chr(int(data.split()[1], 0)))
-            # #
-            # # i = 0
-            # # # リストをループ
-            # # for bef_str in bef_str_list:
-            # #     i += 1
-            # #     # セルをループ
-            # #     for row in ws.iter_rows():
-            # #         for cell in row:
-            # #             if cell.col_idx == 6 or cell.col_idx == 10:
-            # #                 # セルにリストが含まれていたら
-            # #                 if not cell.value is None and bef_str in cell.value:
-            # #                     # 置換
-            # #                     new_text = cell.value.replace(bef_str, aft_str_list[i - 1])
-            # #                     cell.value = new_text
-            #
-            # wb.save(output_file)
+            # 結果をExcelに出力
+            output_dir = os.path.join(self.root_dir, const.EXPORT_DIR, channel.channel_type)
+            os.makedirs(output_dir, exist_ok=True)
+            output_file = os.path.join(output_dir, f'{channel.channel_name}.xlsx')
+            pd.DataFrame(message_list).to_excel(output_file, sheet_name=channel.channel_name, index=False)
+
+            # Excelフォーマット
+            self._format(output_file)
+
+
+
+    def _format(self, output_file):
+        """
+        Excelフォーマット
+
+        Args:
+            output_file:
+
+        Returns:
+
+        """
+
+        # 罫線
+        side = Side(style='thin', color='000000')
+        border_outline = Border(top=side, bottom=side, left=side, right=side)
+        # ヘッダ背景色
+        fill_header = PatternFill(patternType='solid', fgColor='9FE2BF')
+        # フォント
+        font_base = Font(name='Meiryo UI', size=9)
+
+        # 絵文字
+        emoji_list = []
+        with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
+            for data in f.readlines():
+                data = data.replace('\n', '')
+                emoji_list.append({
+                    'before': data.split()[0],
+                    'after': chr(int(data.split()[1], 0))
+                })
+
+        # 列の設定定義
+        # (width, text-align, vertical, wrap_text)
+        column_settings = {
+            1: ('no', 10, 'left', 'top', False),
+            2: ('post_icon', 5, 'left', 'top', False),
+            3: ('post_name', 15, 'left', 'top', False),
+            4: ('post_date', 20, 'center', 'top', False),
+            5: ('post_message', 60, 'left', 'top', True),
+            6: ('reply_icon', 5, 'left', 'top', False),
+            7: ('reply_name', 15, 'left', 'top', False),
+            8: ('reply_date', 20, 'center', 'top', False),
+            9: ('reply_message', 60, 'left', 'top', True),
+        }
+
+        # フォーマット
+        wb = openpyxl.load_workbook(output_file)
+        ws = wb.worksheets[0]
+
+        # 枠線非表示
+        ws.sheet_view.showGridLines = False
+
+        # ヘッダのフォーマット
+        for col in ws.iter_cols(min_col=1, max_col=len(column_settings), min_row=1, max_row=1):
+            for cell in col:
+                cell.font = font_base
+                cell.fill = fill_header
+                cell.border = border_outline
+
+        # 明細行のフォーマット/データの整備
+        for col_idx, (col_id, width, align, vertical, wrap_text) in column_settings.items():
+            col_letter = get_column_letter(col_idx)
+            ws.column_dimensions[col_letter].width = width
+
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=col_idx, max_col=col_idx):
+                for cell in row:
+                    # 書式設定
+                    cell.font = font_base
+                    cell.alignment = Alignment(horizontal=align, vertical=vertical, wrap_text=wrap_text)
+                    cell.border = border_outline
+
+                    if col_id == 'post_icon':
+                        # 投稿者アイコン
+                        if cell.value:
+                            icon_name = str(cell.value)
+                            img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), f'{icon_name}.jpg')
+                            if os.path.exists(img_path):
+                                cell.value = None
+                                img = Image(img_path)
+                                ws.add_image(img, cell.coordinate)
+
+                    if col_id == 'reply_icon':
+                        # 返信者アイコン
+                        if cell.value:
+                            icon_name = str(cell.value)
+                            img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), f'{icon_name}.jpg')
+                            if os.path.exists(img_path):
+                                cell.value = None
+                                img = Image(img_path)
+                                ws.add_image(img, cell.coordinate)
+
+                    if col_id == 'post_message' or col_id == 'reply_message':
+                        # メッセージの場合、絵文字を置換する
+                        if cell.value is not None:
+                            for emoji in emoji_list:
+                                if emoji['before'] in cell.value:
+                                    cell.value = cell.value.replace(emoji['before'], emoji['after'])
+
+
+        if ws.max_row > 1:
+            # 条件付き書式
+            border_top_none = Border(top=Side(border_style=None))
+            border_top_hair = Border(top=Side(border_style='hair', color='000000'))
+            empty_font = Font(color='FFFFFF')
+            formula = '=INDIRECT(ADDRESS(ROW(), 5)) = ""'
+
+            rule1 = FormulaRule(formula=[formula], font=empty_font, border=border_top_none)
+            ws.conditional_formatting.add(f'A2:E{ws.max_row}', rule1)
+
+            rule2 = FormulaRule(formula=[formula], border=border_top_hair)
+            ws.conditional_formatting.add(f'F2:I{ws.max_row}', rule2)
+
+        # オートフィルタ
+        ws.auto_filter.ref = ws.dimensions
+        # ウィンドウ枠の固定
+        ws.freeze_panes = 'B2'
+
+        # 保存
+        wb.save(output_file)
+
 
     def get_channel_history_id_by_logical_pk(self, post_date):
+        """
+        論理キーで投稿履歴IDを取得する
+
+        Args:
+            post_date:
+
+        Returns:
+
+        """
         cond = [set_cond_model.Condition('post_date', post_date)]
         dataaccess = TrChannelHistoriesDataAccess(self.conn)
         results = dataaccess.select(conditions=cond)
@@ -465,184 +459,18 @@ class GetMessages:
         return results[0].channel_id
 
 
+def get_column_letter(n):
+    """
+    カラムインデックスから列名を取得
 
-    def _format(self, output_file, channel_name):
+    Args:
+        n:
 
-        column_settings = {
-            1: ('left', 10),
-            2: ('left', 5),
-            3: ('left', 15),
-            4: ('center', 20),
-            5: ('left', 60),
-            6: ('left', 5),
-            7: ('left', 15),
-            8: ('center', 20),
-            9: ('left', 60),
-        }
+    Returns:
 
-        # フォーマット
-        wb = openpyxl.load_workbook(output_file)
-        ws = wb.worksheets[0]
-
-        for col_idx, (align, width) in column_settings.items():
-            col_letter = openpyxl.utils.get_column_letter(col_idx)
-            ws.column_dimensions[col_letter] = width
-
-            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=col_idx, max_col=col_idx):
-                for cell in row:
-                    cell.alignment = Alignment(horizontal=align)
-
-
-        # ws.sheet_view.showGridLines = False
-        # ws.column_dimensions['A'].width = 10
-        # ws.column_dimensions['B'].width = 5
-        # ws.column_dimensions['C'].width = 15
-        # ws.column_dimensions['D'].width = 20
-        # ws.column_dimensions['E'].width = 60
-        # ws.column_dimensions['F'].width = 5
-        # ws.column_dimensions['G'].width = 15
-        # ws.column_dimensions['H'].width = 20
-        # ws.column_dimensions['I'].width = 60
-
-        # 罫線
-        side = Side(style='thin', color='000000')
-        border_outline = Border(top=side, bottom=side, left=side, right=side)
-        border_top = Border(top=side)
-
-        # ヘッダ背景色
-        fill_header = PatternFill(patternType='solid', fgColor='9FE2BF')
-
-        # フォーマット
-        font_base = Font(name='Meiryo UI', size=9)
-
-        # ヘッダのフォーマット
-        for col in ws.iter_cols(min_col=1, max_col=9, min_row=1, max_row=1):
-            col.border = border_outline
-            col.fill = fill_header
-
-        # 明細行のフォーマット
-        row_index = 2
-        no_val = 0
-        bef_post_user = ''
-        bef_post_date = ''
-
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=9):
-            for cell in row:
-                print(cell)
-                cell.border = border_outline
-
-            # # 書式設定
-            # ws.cell(row=row_index, column=1).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=2).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=3).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=4).alignment = Alignment(horizontal='center', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=5).alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-            # ws.cell(row=row_index, column=6).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=7).alignment = Alignment(horizontal='left', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=8).alignment = Alignment(horizontal='center', vertical='top', wrap_text=False)
-            # ws.cell(row=row_index, column=9).alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-
-            if bef_post_user == ws.cell(row=row_index, column=3).value \
-                    and bef_post_date == ws.cell(row=row_index, column=4).value:
-                # 前行と投稿者、投稿日が同じ場合
-                # アイコン、メッセージをクリア
-                ws.cell(row=row_index, column=1).value = None
-                ws.cell(row=row_index, column=5).value = None
-            else:
-                # Noをインクリメント
-                no_val += 1
-
-                bef_post_user = ws.cell(row=row_index, column=3).value
-                bef_post_date = ws.cell(row=row_index, column=4).value
-
-            # Noの設定
-            ws.cell(row=row_index, column=1).value = no_val
-
-            # 罫線の設定
-            # ws.cell(row=row_index, column=1).border = border_outline
-            ws.cell(row=row_index, column=6).border = border_outline
-            ws.cell(row=row_index, column=7).border = border_outline
-            ws.cell(row=row_index, column=8).border = border_outline
-            ws.cell(row=row_index, column=9).border = border_outline
-
-            # 投稿者アイコン
-            icon_name = str(ws.cell(row=row_index, column=2).value)
-            img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), icon_name)
-            if os.path.exists(img_path):
-                ws.cell(row=row_index, column=2).value = None
-                img = Image(img_path)
-                ws.add_image(img, ws.cell(row=row_index, column=2).coordinate)
-
-            # 返信者アイコン
-            icon_name = str(ws.cell(row=row_index, column=6).value)
-            img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), icon_name)
-            if os.path.exists(img_path):
-                ws.cell(row=row_index, column=6).value = None
-                img = Image(img_path)
-                ws.add_image(img, ws.cell(row=row_index, column=6).coordinate)
-
-            row_index += 1
-
-        # 最下部の罫線
-        ws.cell(row=row_index, column=1).border = border_top
-        ws.cell(row=row_index, column=2).border = border_top
-        ws.cell(row=row_index, column=3).border = border_top
-        ws.cell(row=row_index, column=4).border = border_top
-        ws.cell(row=row_index, column=5).border = border_top
-
-        # フォーマット
-        for row in ws:
-            for cell in row:
-                ws[cell.coordinate].font = font_base
-                # if 'K' in cell.coordinate:
-                #     cell.font = empty_font
-
-        # 条件付き書式
-        # dxf = DifferentialStyle(border=border_side, font=empty_font)
-        # r = Rule(type='expression', dxf=dxf, stopIfTrue=True)
-        # r.formula = ['=INDIRECT(ADDRESS(ROW(), 11)) = "1"']
-        # ws.conditional_formatting.add('B2:F' + str(row_index - 1), r)
-        #
-        # dxf = DifferentialStyle(border=border_with_top)
-        # r = Rule(type='expression', dxf=dxf, stopIfTrue=True)
-        # r.formula = ['=INDIRECT(ADDRESS(ROW(), 11)) = "0"']
-        # ws.conditional_formatting.add('B2:F' + str(row_index - 1), r)
-
-        # オートフィルタ
-        ws.auto_filter.ref = ws.dimensions
-        # ウィンドウ枠の固定
-        ws.freeze_panes = 'B2'
-
-        # 置換
-        # 置換する文字列を指定
-        bef_str_list = []
-        aft_str_list = []
-
-        # # ユーザー
-        # for user_idx in range(len(df_user)):
-        #     user = df_user.loc[user_idx]
-        #     bef_str_list.append(user['user_id'])
-        #     aft_str_list.append(user['user_display_name'])
-        #
-        # # 絵文字
-        # with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
-        #     for data in f.readlines():
-        #         data = data.replace('\n', '')
-        #         bef_str_list.append(data.split()[0])
-        #         aft_str_list.append(chr(int(data.split()[1], 0)))
-        #
-        # i = 0
-        # # リストをループ
-        # for bef_str in bef_str_list:
-        #     i += 1
-        #     # セルをループ
-        #     for row in ws.iter_rows():
-        #         for cell in row:
-        #             if cell.col_idx == 6 or cell.col_idx == 10:
-        #                 # セルにリストが含まれていたら
-        #                 if not cell.value is None and bef_str in cell.value:
-        #                     # 置換
-        #                     new_text = cell.value.replace(bef_str, aft_str_list[i - 1])
-        #                     cell.value = new_text
-
-        wb.save(output_file)
+    """
+    result = ""
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        result = chr(65 + remainder) + result
+    return result

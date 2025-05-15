@@ -12,7 +12,9 @@ conf/search/search_private_channel_list.xlsx
 conf/search/search_im_channel_list.xlsx
 export/im/*.xlsx
 export/public/*.xlsx
+export/public_channel/*.xlsx
 export/private/*.xlsx
+export/private_channel/*.xlsx
 bin/data/*.xlsx
 bin/static/icon/*.jpg
 *__pycache__*

@@ -24,36 +24,6 @@ def get_icon_dir(bin_dir):
     """
     return os.path.join(bin_dir, 'static', 'icon')
 
-def get_datafile(bin_dir, data_type):
-    """
-    チャンネル一覧、投稿一覧、返信一覧ファイルパスを取得
-
-    Args:
-        bin_dir:
-        data_type:
-
-    Returns:
-
-    """
-    if data_type == 'public':
-        channel_list_path = os.path.join(bin_dir, const.DATA_DIR, const.PUBLIC_CHANNEL_FILENAME)
-        history_list_path = os.path.join(bin_dir, const.DATA_DIR, const.PUBLIC_HISTORY_FILENAME)
-        replies_list_path = os.path.join(bin_dir, const.DATA_DIR, const.PUBLIC_REPLIES_FILENAME)
-    elif data_type == 'private':
-        channel_list_path = os.path.join(bin_dir, const.DATA_DIR, const.PRIVATE_CHANNEL_FILENAME)
-        history_list_path = os.path.join(bin_dir, const.DATA_DIR, const.PRIVATE_HISTORY_FILENAME)
-        replies_list_path = os.path.join(bin_dir, const.DATA_DIR, const.PRIVATE_REPLIES_FILENAME)
-    elif data_type == 'im':
-        channel_list_path = os.path.join(bin_dir, const.DATA_DIR, const.IM_CHANNEL_FILENAME)
-        history_list_path = os.path.join(bin_dir, const.DATA_DIR, const.IM_HISTORY_FILENAME)
-        replies_list_path = os.path.join(bin_dir, const.DATA_DIR, const.IM_REPLIES_FILENAME)
-    else:
-        channel_list_path = ''
-        history_list_path = ''
-        replies_list_path = ''
-
-    return channel_list_path, history_list_path, replies_list_path
-
 
 def get_token():
     """
@@ -110,6 +80,7 @@ def convert_from_date(val):
     """
     converted_datetime = dateutil.parser.parse(val.strftime('%Y-%m-%d'))
     return converted_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
 
 def convert_to_date(val):
     """

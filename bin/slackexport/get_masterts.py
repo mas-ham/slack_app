@@ -136,8 +136,8 @@ class GetMasters:
             # user_name = df_user.query('user_id == "' + data['user'] + '"').loc[0:, 'user_display_name']
             # channel_dict.append({'channel_id':data['id'], 'channel_name':user_name, 'channel_type':'im'})
             dataaccess = slack_user_dataaccess.SlackUserDataAccess(self.conn)
-            user_name = dataaccess.select_by_pk(data['user']).user_name
-            result_list.append({'channel_id':data['id'], 'channel_name':user_name, 'channel_type':'im'})
+            user_id = dataaccess.select_by_pk(data['user']).user_id
+            result_list.append({'channel_id':data['id'], 'channel_name':user_id, 'channel_type':'im'})
 
         return result_list
 
