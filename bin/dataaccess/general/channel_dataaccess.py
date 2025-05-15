@@ -1,7 +1,7 @@
 """
 dataaccess：channel
 
-create 2025/05/14 hamada
+create 2025/05/16 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.channel import Channel
@@ -51,7 +51,7 @@ class ChannelDataAccess(BaseDataAccess):
         results = self.execute_select_by_pk(TABLE_ID, channel_id = channel_id)
         if results.empty:
             return None
-        return Channel(results[0]['channel_id'], results[0]['channel_name'], results[0]['channel_type'])
+        return Channel(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2])
 
 
     def select_all(self, order_by_list = None) -> list[Channel]:
@@ -194,5 +194,5 @@ class ChannelDataAccess(BaseDataAccess):
         Returns:
 
         """
-        self.execute_delete(TABLE_ID)
+        self.execute_delete_all(TABLE_ID)
 

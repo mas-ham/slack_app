@@ -1,7 +1,7 @@
 """
 dataaccess：search_channel
 
-create 2025/05/14 hamada
+create 2025/05/16 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.search_channel import SearchChannel
@@ -53,7 +53,7 @@ class SearchChannelDataAccess(BaseDataAccess):
         results = self.execute_select_by_pk(TABLE_ID, settings_user_id = settings_user_id, channel_id = channel_id)
         if results.empty:
             return None
-        return SearchChannel(results[0]['settings_user_id'], results[0]['channel_id'], results[0]['display_flg'], results[0]['default_check_flg'])
+        return SearchChannel(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2], results.iat[0, 3])
 
 
     def select_all(self, order_by_list = None) -> list[SearchChannel]:
@@ -206,5 +206,5 @@ class SearchChannelDataAccess(BaseDataAccess):
         Returns:
 
         """
-        self.execute_delete(TABLE_ID)
+        self.execute_delete_all(TABLE_ID)
 

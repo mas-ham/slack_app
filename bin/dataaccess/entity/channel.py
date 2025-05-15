@@ -1,7 +1,7 @@
 """
 Entity：channel
 
-create 2025/05/14 hamada
+create 2025/05/16 hamada
 """
 import dataclasses
 

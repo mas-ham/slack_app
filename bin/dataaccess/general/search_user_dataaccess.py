@@ -1,7 +1,7 @@
 """
 dataaccess：search_user
 
-create 2025/05/14 hamada
+create 2025/05/16 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.search_user import SearchUser
@@ -53,7 +53,7 @@ class SearchUserDataAccess(BaseDataAccess):
         results = self.execute_select_by_pk(TABLE_ID, settings_user_id = settings_user_id, slack_user_id = slack_user_id)
         if results.empty:
             return None
-        return SearchUser(results[0]['settings_user_id'], results[0]['slack_user_id'], results[0]['display_flg'], results[0]['default_check_flg'])
+        return SearchUser(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2], results.iat[0, 3])
 
 
     def select_all(self, order_by_list = None) -> list[SearchUser]:
@@ -206,5 +206,5 @@ class SearchUserDataAccess(BaseDataAccess):
         Returns:
 
         """
-        self.execute_delete(TABLE_ID)
+        self.execute_delete_all(TABLE_ID)
 

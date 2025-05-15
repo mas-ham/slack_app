@@ -210,8 +210,8 @@ def _create_dataaccess_select_by_pk(table_id, column_list, pk_list, all_list):
         pk_params.append(f'{column_id} = {column_id}')
     pk_param = ', '.join(pk_params)
     row_list = []
-    for column_id in column_list:
-        row_list.append(f"results[0]['{column_id}']")
+    for i in range(0, len(column_list)):
+        row_list.append(f"results.iat[0, {i}]")
     s = list()
     # Select_by_PK
     s.append(f'    def select_by_pk(self, {", ".join(pk_list)}) -> {camel_table_id} | None:')
@@ -467,7 +467,7 @@ def _create_dataaccess_delete_all(table_id, column_list, pk_list, all_list):
     s.append(f'        Returns:')
     s.append(f'')
     s.append(f'        """')
-    s.append(f'        self.execute_delete(TABLE_ID)')
+    s.append(f'        self.execute_delete_all(TABLE_ID)')
     s.append(f'')
     s.append(f'')
 

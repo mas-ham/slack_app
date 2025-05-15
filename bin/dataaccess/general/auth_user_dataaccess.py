@@ -1,7 +1,7 @@
 """
 dataaccess：auth_user
 
-create 2025/05/14 hamada
+create 2025/05/16 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.auth_user import AuthUser
@@ -50,7 +50,7 @@ class AuthUserDataAccess(BaseDataAccess):
         results = self.execute_select_by_pk(TABLE_ID, user_id = user_id)
         if results.empty:
             return None
-        return AuthUser(results[0]['user_id'], results[0]['channel_id'])
+        return AuthUser(results.iat[0, 0], results.iat[0, 1])
 
 
     def select_all(self, order_by_list = None) -> list[AuthUser]:
@@ -186,5 +186,5 @@ class AuthUserDataAccess(BaseDataAccess):
         Returns:
 
         """
-        self.execute_delete(TABLE_ID)
+        self.execute_delete_all(TABLE_ID)
 

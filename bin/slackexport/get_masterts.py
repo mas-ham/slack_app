@@ -44,15 +44,16 @@ class GetMasters:
         """
         # ユーザー情報を取得
         user_list = self._get_user_list()
+        self._regist_user_list(user_list)
+
         # チャンネル情報の取得
         # public、private、im、mpimと分けて取得する(レスポンスにtypeが返却されないため)
         public_channel_list = self._get_channel_list(const.PUBLIC_CHANNEL)
         private_channel_list = self._get_channel_list(const.PRIVATE_CHANNEL)
-        im_channel_list = self._get_im_channel_list(user_list)
+        im_channel_list = self._get_im_channel_list()
 
-        # ユーザー情報の登録
-        self._regist_user_list(user_list)
-        # チャンネル情報の登録
+        dataaccess = channel_dataaccess.ChannelDataAccess(self.conn)
+        dataaccess.delete_all()
         self._regist_channel_list(public_channel_list)
         self._regist_channel_list(private_channel_list)
         self._regist_channel_list(im_channel_list)
@@ -114,12 +115,11 @@ class GetMasters:
         return result_list
 
 
-    def _get_im_channel_list(self, df_user):
+    def _get_im_channel_list(self):
         """
        Slackからチャンネル情報を取得(im)
 
         Args:
-            df_user:
 
         Returns:
 
@@ -133,8 +133,6 @@ class GetMasters:
         result_list = []
         for data in channel_list:
             # ユーザー名を取得
-            # user_name = df_user.query('user_id == "' + data['user'] + '"').loc[0:, 'user_display_name']
-            # channel_dict.append({'channel_id':data['id'], 'channel_name':user_name, 'channel_type':'im'})
             dataaccess = slack_user_dataaccess.SlackUserDataAccess(self.conn)
             user_id = dataaccess.select_by_pk(data['user']).user_id
             result_list.append({'channel_id':data['id'], 'channel_name':user_id, 'channel_type':'im'})
@@ -160,7 +158,7 @@ class GetMasters:
                 user_id = row['user_display_name'],
                 user_name = row['user_name'],
                 icon = row['icon'],
-                delete_flg = row['delete_flg'],
+                delete_flg = app_shared_service.convert_flg(row['delete_flg']),
             )
             entity_list.append(entity)
 
@@ -192,5 +190,4 @@ class GetMasters:
 
         # Delete - Insert
         dataaccess = channel_dataaccess.ChannelDataAccess(self.conn)
-        dataaccess.delete_all()
         dataaccess.insert_many(entity_list)

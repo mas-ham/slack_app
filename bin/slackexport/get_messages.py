@@ -98,7 +98,7 @@ class GetMessages:
         # from_dateを前日に更新する
         if int(self.conf['is_get_messages']) and int(self.conf['is_overwrite_from_date']):
             json_data = app_shared_service.get_conf(self.root_dir)
-            json_data['get_messages']['from_date'] = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y/%m/%d')
+            json_data['get_messages']['from_date'] = datetime.datetime.now().strftime('%Y/%m/%d')
             app_shared_service.write_conf(self.root_dir, const.SETTINGS_FILENAME, json_data)
 
 
@@ -247,11 +247,11 @@ class GetMessages:
         from_date = self.conf['from_date']
         to_date = self.conf['to_date']
         if not from_date:
-            # Toが空の場合は1週間前を指定する
+            # Fromが空の場合は1週間前を指定する
             from_date = (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y/%m/%d')
         if not to_date:
-            # Toが空の場合は前日を指定する
-            to_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y/%m/%d')
+            # Toが空の場合は当日を指定する
+            to_date = datetime.datetime.now().strftime('%Y/%m/%d')
 
         self.logger.info(f'get_messages : {from_date} - {to_date}', is_print=True)
 

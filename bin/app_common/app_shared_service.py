@@ -95,3 +95,7 @@ def convert_to_date(val):
     converted_datetime = dateutil.parser.parse(val.strftime('%Y-%m-%d'))
     converted_datetime = converted_datetime + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
     return converted_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def convert_flg(val: bool) -> str:
+    return '1' if val else '0'

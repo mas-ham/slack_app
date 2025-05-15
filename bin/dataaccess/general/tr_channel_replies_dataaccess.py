@@ -1,7 +1,7 @@
 """
 dataaccess：tr_channel_replies
 
-create 2025/05/14 hamada
+create 2025/05/16 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.tr_channel_replies import TrChannelReplies
@@ -52,7 +52,7 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         results = self.execute_select_by_pk(TABLE_ID, channel_reply_id = channel_reply_id)
         if results.empty:
             return None
-        return TrChannelReplies(results[0]['channel_history_id'], results[0]['reply_date'], results[0]['reply_slack_user_id'], results[0]['reply_message'])
+        return TrChannelReplies(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2], results.iat[0, 3])
 
 
     def select_all(self, order_by_list = None) -> list[TrChannelReplies]:
@@ -204,5 +204,5 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         Returns:
 
         """
-        self.execute_delete(TABLE_ID)
+        self.execute_delete_all(TABLE_ID)
 

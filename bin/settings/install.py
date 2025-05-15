@@ -10,12 +10,12 @@ def install(bin_dir, conn):
     cur = conn.cursor()
 
     # テーブルcreate
-    # __create_table(cur, bin_dir, 'auth_user')
-    # __create_table(cur, bin_dir, 'channel')
-    # __create_table(cur, bin_dir, 'search_channel')
-    # __create_table(cur, bin_dir, 'search_user')
-    # __create_table(cur, bin_dir, 'slack_user')
-    # __create_table(cur, bin_dir, 'sso_user')
+    __create_table(cur, bin_dir, 'auth_user')
+    __create_table(cur, bin_dir, 'channel')
+    __create_table(cur, bin_dir, 'search_channel')
+    __create_table(cur, bin_dir, 'search_user')
+    __create_table(cur, bin_dir, 'slack_user')
+    __create_table(cur, bin_dir, 'sso_user')
     __create_table(cur, bin_dir, 'tr_channel_histories')
     __create_table(cur, bin_dir, 'tr_channel_replies')
 
