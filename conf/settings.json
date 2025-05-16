@@ -5,7 +5,7 @@
         "is_export_im": 1,
         "from_date": "2025/05/09",
         "to_date": "",
-        "is_overwrite_from_date": 1,
-        "is_get_messages": 0
+        "is_overwrite_from_date": 0,
+        "is_get_messages": 1
     }
 }

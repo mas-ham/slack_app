@@ -8,6 +8,7 @@ import sqlite3
 import sys
 import datetime
 import time
+import json
 
 from tkinter import messagebox
 import pandas as pd
@@ -31,23 +32,30 @@ pd.options.display.float_format = '{:.6f}'.format
 
 
 class GetMessages:
-    def __init__(self, logger:Logger, root_dir, bin_dir, conn):
+    def __init__(self, logger:Logger, root_dir, bin_dir, conn, is_json=False, is_server=False):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
         self.conn = conn
+        self.is_json = is_json
+        self.is_server = is_server
+
+        # dataaccess
+        self.channel_dataaccess = ChannelDataAccess(conn)
+        self.tr_channel_histories_dataaccess = TrChannelHistoriesDataAccess(conn)
 
         # 設定ファイル
         self.conf = app_shared_service.get_conf(self.root_dir)['get_messages']
         # SlackAPIトークンを取得
         token = app_shared_service.get_token()
         # Slackサービス
-        if int(self.conf['is_get_messages']):
-            if token is None:
-                self.logger.error('Not Define ENVIRONMENT_KEY [SLACK_API_TOKEN]')
-                messagebox.showwarning('WARN', '環境変数「SLACK_API_TOKEN」が定義されていません')
-                sys.exit()
-            self.slack_service = SlackService(logger, token)
+        if not is_json:
+            if int(self.conf['is_get_messages']):
+                if token is None:
+                    self.logger.error('Not Define ENVIRONMENT_KEY [SLACK_API_TOKEN]')
+                    messagebox.showwarning('WARN', '環境変数「SLACK_API_TOKEN」が定義されていません')
+                    sys.exit()
+                self.slack_service = SlackService(logger, token)
 
 
     def main(self):
@@ -68,7 +76,6 @@ class GetMessages:
         self.conn.execute('BEGIN TRANSACTION')
 
         try:
-
             # public
             if int(self.conf['is_export_public']):
                 if int(self.conf['is_get_messages']):
@@ -95,7 +102,7 @@ class GetMessages:
             raise e
 
         # 設定ファイル更新
-        # from_dateを前日に更新する
+        # from_dateを当日に更新する
         if int(self.conf['is_get_messages']) and int(self.conf['is_overwrite_from_date']):
             json_data = app_shared_service.get_conf(self.root_dir)
             json_data['get_messages']['from_date'] = datetime.datetime.now().strftime('%Y/%m/%d')
@@ -120,13 +127,15 @@ class GetMessages:
         # チャンネルの一覧を取得
         cond = [set_cond_model.Condition('channel_type', channel_type)]
         sort = [set_sort_model.OrderBy('channel_name')]
-        dataaccess = ChannelDataAccess(self.conn)
-        channel_list = dataaccess.select(cond, sort)
+        channel_list = self.channel_dataaccess.select(cond, sort)
 
         history_list = []
         for channel in channel_list:
             # チャンネル単位で投稿内容、返信内容を取得
-            history_list_ = self.get_channel_messages(channel.channel_id, oldest, latest)
+            if self.is_json:
+                history_list_ = self.get_channel_messages_json(channel.channel_id, channel.channel_name)
+            else:
+                history_list_ = self.get_channel_messages(channel.channel_id, oldest, latest)
             history_list.extend(history_list_)
 
         # 投稿内容、返信内容の登録
@@ -237,6 +246,65 @@ class GetMessages:
         return history_list
 
 
+    def get_channel_messages_json(self, channel_id, channel_name):
+        """
+        Slackのチャネル内の投稿内容と返信内容を取得
+
+        Args:
+            channel_id:
+            channel_name:
+
+        Returns:
+
+        """
+        base_dir = os.path.join(self.root_dir, 'import', 'get_messages')
+        message_dir = os.path.join(base_dir, channel_name)
+        if not os.path.isdir(message_dir):
+            return []
+
+        all_data = []
+        # jsonファイルを読み込む
+        for file_name in os.listdir(message_dir):
+            if file_name.endswith('.json'):
+                file_path = os.path.join(message_dir, file_name)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    json_data = json.load(f)
+                    for data in json_data:
+                        all_data.append(data)
+
+        history_list = []
+        reply_list = []
+        for data in all_data:
+            # 親スレッドかどうか
+            if not 'ts' in data:
+                continue
+            if not 'thread_ts' in data or data['ts'] == data['thread_ts']:
+                history_record = {
+                    'channel_id': channel_id,
+                    'post_date': float(data['ts']),
+                    'post_user': data['user'],
+                    'post_message': data['text'],
+                }
+
+                # 返信内容を取得
+                if not 'replies' in data:
+                    history_record['reply_list'] = []
+                else:
+                    for replies in data['replies']:
+                        for data2 in all_data:
+                            if data2['ts'] == replies['ts']:
+                                reply_list.append({
+                                    'reply_date': float(data2['ts']),
+                                    'reply_user': data2['user'],
+                                    'reply_message': data2['text'],
+                                })
+                                break
+                    history_record['reply_list'] = reply_list
+
+                history_list.append(history_record)
+
+        return history_list
+
     def get_term(self):
         """
         投稿内容取得期間を取得
@@ -273,8 +341,7 @@ class GetMessages:
             set_sort_model.OrderBy('channel_type'),
             set_sort_model.OrderBy('channel_name')
         ]
-        dataaccess = ChannelDataAccess(self.conn)
-        return dataaccess.select_all(order_by_list=sort)
+        return self.channel_dataaccess.select_all(order_by_list=sort)
 
 
     def _create_slack_messages(self):
@@ -288,6 +355,20 @@ class GetMessages:
         """
         # チャンネル一覧を取得
         channel_list = self._get_channel_list()
+
+        # 絵文字
+        replace_emoji_list = []
+        with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
+            for data in f.readlines():
+                data = data.replace('\n', '')
+                replace_emoji_list.append({
+                    'before': data.split()[0],
+                    'after': chr(int(data.split()[1], 0))
+                })
+
+        # ユーザー
+        # メンションがslack_user_idになっているのでdisplay_nameに置換するためのリスト
+        replace_user_list = []
 
         # チャンネルごとにExcelファイルを生成
         for channel in channel_list:
@@ -303,7 +384,7 @@ class GetMessages:
             pd.DataFrame(message_list).to_excel(output_file, sheet_name=channel.channel_name, index=False)
 
             # Excelフォーマット
-            self._format(output_file)
+            self._format(output_file, replace_user_list, replace_emoji_list)
 
 
     def _get_message_list(self, channel_type, channel_name) -> list | None:
@@ -349,12 +430,14 @@ class GetMessages:
         return message_list
 
 
-    def _format(self, output_file):
+    def _format(self, output_file, replace_user_list, replace_emoji_list):
         """
         Excelフォーマット
 
         Args:
             output_file:
+            replace_user_list:
+            replace_emoji_list:
 
         Returns:
 
@@ -367,16 +450,6 @@ class GetMessages:
         fill_header = PatternFill(patternType='solid', fgColor='9FE2BF')
         # フォント
         font_base = Font(name='Meiryo UI', size=9)
-
-        # 絵文字
-        emoji_list = []
-        with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
-            for data in f.readlines():
-                data = data.replace('\n', '')
-                emoji_list.append({
-                    'before': data.split()[0],
-                    'after': chr(int(data.split()[1], 0))
-                })
 
         # 列の設定定義
         # (width, text-align, vertical, wrap_text)
@@ -439,9 +512,12 @@ class GetMessages:
                                 ws.add_image(img, cell.coordinate)
 
                     if col_id == 'post_message' or col_id == 'reply_message':
-                        # メッセージの場合、絵文字を置換する
+                        # メッセージの場合、ユーザー名、絵文字を置換する
                         if cell.value is not None:
-                            for emoji in emoji_list:
+                            for user in replace_user_list:
+                                if user['before'] in cell.value:
+                                    cell.value = cell.value.replace(user['before'], user['after'])
+                            for emoji in replace_emoji_list:
                                 if emoji['before'] in cell.value:
                                     cell.value = cell.value.replace(emoji['before'], emoji['after'])
 
@@ -479,8 +555,7 @@ class GetMessages:
 
         """
         cond = [set_cond_model.Condition('post_date', post_date)]
-        dataaccess = TrChannelHistoriesDataAccess(self.conn)
-        results = dataaccess.select(conditions=cond)
+        results = self.tr_channel_histories_dataaccess.select(conditions=cond)
 
         return results[0].channel_id
 

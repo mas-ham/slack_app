@@ -38,7 +38,7 @@ SQL_UPSERT_REPLIES = (
     )
     ON CONFLICT (reply_date)
     DO UPDATE 
-        SET reply_message     = ?
+        SET reply_message     = :reply_message
     """
 )
 

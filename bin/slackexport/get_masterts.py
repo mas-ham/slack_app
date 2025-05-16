@@ -5,6 +5,7 @@ create 2025/05/09 hamada
 """
 import os
 import sys
+import json
 
 import requests
 from tkinter import messagebox
@@ -19,20 +20,26 @@ from dataaccess.general import channel_dataaccess, slack_user_dataaccess
 
 
 class GetMasters:
-    def __init__(self, logger:Logger, root_dir, bin_dir, conn):
+    def __init__(self, logger:Logger, root_dir, bin_dir, conn, is_json=False):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
         self.conn = conn
+        self.is_json = is_json
+
+        # dataaccess
+        self.channel_dataaccess = channel_dataaccess.ChannelDataAccess(conn)
+        self.slack_user_dataaccess = slack_user_dataaccess.SlackUserDataAccess(conn)
 
         # SlackAPIトークンを取得
         token = app_shared_service.get_token()
         # Slackサービス
-        if token is None:
-            self.logger.error('Not Define ENVIRONMENT_KEY [SLACK_API_TOKEN]')
-            messagebox.showwarning('WARN', '環境変数「SLACK_API_TOKEN」が定義されていません')
-            sys.exit()
-        self.slack_service = SlackService(logger, token)
+        if not is_json:
+            if token is None:
+                self.logger.error('Not Define ENVIRONMENT_KEY [SLACK_API_TOKEN]')
+                messagebox.showwarning('WARN', '環境変数「SLACK_API_TOKEN」が定義されていません')
+                sys.exit()
+            self.slack_service = SlackService(logger, token)
 
 
     def main(self):
@@ -52,8 +59,7 @@ class GetMasters:
         private_channel_list = self._get_channel_list(const.PRIVATE_CHANNEL)
         im_channel_list = self._get_im_channel_list()
 
-        dataaccess = channel_dataaccess.ChannelDataAccess(self.conn)
-        dataaccess.delete_all()
+        self.channel_dataaccess.delete_all()
         self._regist_channel_list(public_channel_list)
         self._regist_channel_list(private_channel_list)
         self._regist_channel_list(im_channel_list)
@@ -68,15 +74,24 @@ class GetMasters:
         """
 
         # ユーザーリスト取得
-        result = self.slack_service.get_user_list()
-        slack_user_list = result['members']
+        slack_user_list = []
+        if self.is_json:
+            with open(os.path.join(self.root_dir, 'import', 'get_messages', 'users.json'), 'r', encoding='utf-8') as f:
+                result = json.load(f)
+                for item in result:
+                    slack_user_list.append(item)
+        else:
+            result = self.slack_service.get_user_list()
+            slack_user_list = result['members']
 
         # slackから取得した情報を追加
         result_list = []
         for data in slack_user_list:
             # アイコンダウンロード
-            response = requests.get(data['profile']['image_24'])
-            response.raise_for_status()
+            response = None
+            if not self.is_json:
+                response = requests.get(data['profile']['image_24'])
+                response.raise_for_status()
             if str(data['profile']['display_name']) == '':
                 displayname = data['profile']['real_name']
                 filename = data['id'] + '.jpg'
@@ -84,8 +99,9 @@ class GetMasters:
                 displayname = data['profile']['display_name']
                 filename = data['profile']['display_name'] + '.jpg'
 
-            with open(os.path.join(app_shared_service.get_icon_dir(self.bin_dir), filename), 'wb') as f:
-                f.write(response.content)
+            if not self.is_json:
+                with open(os.path.join(app_shared_service.get_icon_dir(self.bin_dir), filename), 'wb') as f:
+                    f.write(response.content)
 
             result_list.append({'user_id':data['id'], 'user_name':data['profile']['real_name'], 'user_display_name':displayname, 'icon':filename, 'delete_flg':data['deleted']})
 
@@ -104,8 +120,18 @@ class GetMasters:
         """
 
         # チャンネルリスト取得
-        result = self.slack_service.get_channel_list(channel_type)
-        channel_list = result['channels']
+        channel_list = []
+        if self.is_json:
+            if not channel_type == const.PUBLIC_CHANNEL:
+                return []
+
+            with open(os.path.join(self.root_dir, 'import', 'get_messages', 'channels.json'), 'r', encoding='utf-8') as f:
+                result = json.load(f)
+                for item in result:
+                    channel_list.append(item)
+        else:
+            result = self.slack_service.get_channel_list(channel_type)
+            channel_list = result['channels']
 
         # slackから取得した情報を追加
         result_list = []
@@ -125,6 +151,9 @@ class GetMasters:
 
         """
 
+        if self.is_json:
+            return []
+
         # チャンネルリスト取得
         result = self.slack_service.get_channel_list('im')
         channel_list = result['channels']
@@ -133,8 +162,7 @@ class GetMasters:
         result_list = []
         for data in channel_list:
             # ユーザー名を取得
-            dataaccess = slack_user_dataaccess.SlackUserDataAccess(self.conn)
-            user_id = dataaccess.select_by_pk(data['user']).user_id
+            user_id = self.slack_user_dataaccess.select_by_pk(data['user']).user_id
             result_list.append({'channel_id':data['id'], 'channel_name':user_id, 'channel_type':'im'})
 
         return result_list
@@ -163,9 +191,8 @@ class GetMasters:
             entity_list.append(entity)
 
         # Delete - Insert
-        dataaccess = slack_user_dataaccess.SlackUserDataAccess(self.conn)
-        dataaccess.delete_all()
-        dataaccess.insert_many(entity_list)
+        self.slack_user_dataaccess.delete_all()
+        self.slack_user_dataaccess.insert_many(entity_list)
 
 
     def _regist_channel_list(self, channel_list):
@@ -188,6 +215,5 @@ class GetMasters:
             )
             entity_list.append(entity)
 
-        # Delete - Insert
-        dataaccess = channel_dataaccess.ChannelDataAccess(self.conn)
-        dataaccess.insert_many(entity_list)
+        # Insert
+        self.channel_dataaccess.insert_many(entity_list)

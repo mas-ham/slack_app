@@ -48,6 +48,7 @@ def execute(logger: Logger, root_dir, bin_dir):
                     root_dir,
                     bin_dir,
                     conn,
+                    True if 'is_json' in params and int(params['is_json']) else False,
                 )
                 service.main()
 
@@ -63,6 +64,7 @@ def execute(logger: Logger, root_dir, bin_dir):
                     root_dir,
                     bin_dir,
                     conn,
+                    True if 'is_json' in params and int(params['is_json']) else False,
                 )
                 service.main()
 
