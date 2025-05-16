@@ -263,6 +263,12 @@ class GetMessages:
 
 
     def _get_channel_list(self):
+        """
+        チャンネル一覧を取得
+
+        Returns:
+
+        """
         sort = [
             set_sort_model.OrderBy('channel_type'),
             set_sort_model.OrderBy('channel_name')
@@ -273,7 +279,7 @@ class GetMessages:
 
     def _create_slack_messages(self):
         """
-        Slackから取得した投稿内容を成形する
+        Slackから取得した投稿内容を出力する
 
         Args:
 
@@ -287,30 +293,8 @@ class GetMessages:
         for channel in channel_list:
             self.logger.info(channel.channel_name, is_print=True)
 
-            # データを取得
-            cursor = self.conn.cursor()
-            dataaccess = SlackExportDataaccess(cursor)
-            results = dataaccess.get_slack_messages({'channel_type': channel.channel_type, 'channel_name': channel.channel_name})
-
-            # Excel出力用に整形
-            message_list = []
-            history_id_list = []
-            no = 1
-            for _, row in results.iterrows():
-                message_list.append({
-                    'no': no,
-                    'post_icon': '' if row['channel_history_id'] in history_id_list else row['post_name'],
-                    'post_name': row['post_name'],
-                    'post_date': row['post_date'],
-                    'post_message': '' if row['channel_history_id'] in history_id_list else row['post_message'] ,
-                    'reply_icon': row['reply_name'],
-                    'reply_name': row['reply_name'],
-                    'reply_date': row['reply_date'],
-                    'reply_message': row['reply_message'],
-                })
-                if not row['channel_history_id'] in history_id_list:
-                    history_id_list.append(row['channel_history_id'])
-                    no += 1
+            # 投稿内容/返信内容を取得
+            message_list = self._get_message_list(channel.channel_type, channel.channel_name)
 
             # 結果をExcelに出力
             output_dir = os.path.join(self.root_dir, const.EXPORT_DIR, channel.channel_type)
@@ -321,6 +305,48 @@ class GetMessages:
             # Excelフォーマット
             self._format(output_file)
 
+
+    def _get_message_list(self, channel_type, channel_name) -> list | None:
+        """
+        投稿内容/返信内容を取得
+
+        Args:
+            channel_type:
+            channel_name:
+
+        Returns:
+
+        """
+        # データを取得
+        cursor = self.conn.cursor()
+        dataaccess = SlackExportDataaccess(cursor)
+        results = dataaccess.get_slack_messages({'channel_type': channel_type, 'channel_name': channel_name})
+
+        if results.empty:
+            # データがない場合は出力しない
+            return None
+
+        # Excel出力用に整形
+        message_list = []
+        history_id_list = []
+        no = 1
+        for _, row in results.iterrows():
+            message_list.append({
+                'no': no,
+                'post_icon': '' if row['channel_history_id'] in history_id_list else row['post_name'],
+                'post_name': row['post_name'],
+                'post_date': row['post_date'],
+                'post_message': '' if row['channel_history_id'] in history_id_list else row['post_message'],
+                'reply_icon': row['reply_name'],
+                'reply_name': row['reply_name'],
+                'reply_date': row['reply_date'],
+                'reply_message': row['reply_message'],
+            })
+            if not row['channel_history_id'] in history_id_list:
+                history_id_list.append(row['channel_history_id'])
+                no += 1
+
+        return message_list
 
 
     def _format(self, output_file):
