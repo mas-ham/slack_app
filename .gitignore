@@ -10,6 +10,7 @@ conf/search/search_user_list.xlsx
 conf/search/search_public_channel_list.xlsx
 conf/search/search_private_channel_list.xlsx
 conf/search/search_im_channel_list.xlsx
+dist/
 import/get_messages/*/*
 import/get_messages/*.json
 export/im/*.xlsx
