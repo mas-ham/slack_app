@@ -1,5 +1,27 @@
 import pandas as pd
 
+# チャンネルを登録
+SQL_UPSERT_CHANNEL = (
+    """
+    INSERT INTO channel (
+        channel_id
+      , channel_name
+      , channel_type
+    )
+    VALUES (
+        :channel_id
+      , :channel_name
+      , :channel_type
+    )
+    ON CONFLICT (channel_id)
+    DO UPDATE 
+        SET 
+            channel_name     = :channel_name
+          , channel_type     = :channel_type
+    """
+)
+
+
 # 投稿内容を登録
 SQL_UPSERT_HISTORIES = (
     """
@@ -67,14 +89,27 @@ SQL_GET_SLACK_MESSAGES = (
           channel.channel_type  = :channel_type
       AND channel.channel_name  = :channel_name
     ORDER BY
-        history.channel_history_id
-      , reply.channel_reply_id
+        history.post_date
+      , reply.reply_date
     """
 )
 
 class SlackExportDataaccess:
     def __init__(self, cursor):
         self.cursor = cursor
+
+    def upsert_channel(self, params):
+        """
+        チャンネル一覧Upsert
+
+        Args:
+            params:
+
+        Returns:
+
+        """
+        return self.cursor.execute(SQL_UPSERT_CHANNEL, params)
+
 
     def upsert_history(self, params):
         """
@@ -103,5 +138,14 @@ class SlackExportDataaccess:
 
 
     def get_slack_messages(self, params):
+        """
+        Excel出力用にSlackメッセージを検索
+
+        Args:
+            params:
+
+        Returns:
+
+        """
         self.cursor.execute(SQL_GET_SLACK_MESSAGES, params)
         return pd.DataFrame(self.cursor.fetchall(), columns=['channel_history_id', 'channel_reply_id', 'post_name', 'post_date', 'post_message', 'reply_name', 'reply_date', 'reply_message'])

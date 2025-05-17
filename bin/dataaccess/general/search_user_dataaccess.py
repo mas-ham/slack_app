@@ -1,7 +1,7 @@
 """
 dataaccess：search_user
 
-create 2025/05/16 hamada
+create 2025/05/17 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.search_user import SearchUser
@@ -14,7 +14,6 @@ class SearchUserDataAccess(BaseDataAccess):
         super().__init__(conn)
 
         self.col_list = [
-            'settings_user_id',
             'slack_user_id',
             'display_flg',
             'default_check_flg',
@@ -36,24 +35,23 @@ class SearchUserDataAccess(BaseDataAccess):
         results = self.execute_select(TABLE_ID, conditions, order_by_list)
         if results.empty:
             return []
-        return [SearchUser(row['settings_user_id'], row['slack_user_id'], row['display_flg'], row['default_check_flg']) for _, row in results.iterrows()]
+        return [SearchUser(row['slack_user_id'], row['display_flg'], row['default_check_flg']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, settings_user_id, slack_user_id) -> SearchUser | None:
+    def select_by_pk(self, slack_user_id) -> SearchUser | None:
         """
         Select_by_PK
 
         Args:
-            settings_user_id:
             slack_user_id:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, settings_user_id = settings_user_id, slack_user_id = slack_user_id)
+        results = self.execute_select_by_pk(TABLE_ID, slack_user_id = slack_user_id)
         if results.empty:
             return None
-        return SearchUser(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2], results.iat[0, 3])
+        return SearchUser(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2])
 
 
     def select_all(self, order_by_list = None) -> list[SearchUser]:
@@ -69,7 +67,7 @@ class SearchUserDataAccess(BaseDataAccess):
         results = self.execute_select_all(TABLE_ID, order_by_list)
         if results.empty:
             return []
-        return [SearchUser(row['settings_user_id'], row['slack_user_id'], row['display_flg'], row['default_check_flg']) for _, row in results.iterrows()]
+        return [SearchUser(row['slack_user_id'], row['display_flg'], row['default_check_flg']) for _, row in results.iterrows()]
 
 
     def insert(self, entity: SearchUser) -> int:
@@ -83,7 +81,6 @@ class SearchUserDataAccess(BaseDataAccess):
 
         """
         params = (
-            entity.settings_user_id,
             entity.slack_user_id,
             entity.display_flg,
             entity.default_check_flg,
@@ -105,7 +102,6 @@ class SearchUserDataAccess(BaseDataAccess):
         for entity in entity_list:
             params.append(
                 (
-                    entity.settings_user_id,
                     entity.slack_user_id,
                     entity.display_flg,
                     entity.default_check_flg,
@@ -114,42 +110,37 @@ class SearchUserDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: SearchUser, settings_user_id, slack_user_id):
+    def update(self, entity: SearchUser, slack_user_id):
         """
         Update
 
         Args:
             entity:
-            settings_user_id:
             slack_user_id:
 
         Returns:
 
         """
         update_info = {
-            'settings_user_id': entity.settings_user_id,
             'slack_user_id': entity.slack_user_id,
             'display_flg': entity.display_flg,
             'default_check_flg': entity.default_check_flg,
         }
-        self.execute_update(TABLE_ID, update_info, settings_user_id = settings_user_id, slack_user_id = slack_user_id)
+        self.execute_update(TABLE_ID, update_info, slack_user_id = slack_user_id)
 
 
-    def update_selective(self, entity: SearchUser, settings_user_id, slack_user_id):
+    def update_selective(self, entity: SearchUser, slack_user_id):
         """
         Update selective
 
         Args:
             entity:
-            settings_user_id:
             slack_user_id:
 
         Returns:
 
         """
         update_info = {}
-        if entity.settings_user_id is not None:
-            update_info['settings_user_id'] = entity.settings_user_id
         if entity.slack_user_id is not None:
             update_info['slack_user_id'] = entity.slack_user_id
         if entity.display_flg is not None:
@@ -157,7 +148,7 @@ class SearchUserDataAccess(BaseDataAccess):
         if entity.default_check_flg is not None:
             update_info['default_check_flg'] = entity.default_check_flg
 
-        self.execute_update(TABLE_ID, update_info, settings_user_id = settings_user_id, slack_user_id = slack_user_id)
+        self.execute_update(TABLE_ID, update_info, slack_user_id = slack_user_id)
 
 
     def delete(self, key: SearchUser):
@@ -171,8 +162,6 @@ class SearchUserDataAccess(BaseDataAccess):
 
         """
         key_map = {}
-        if key.settings_user_id is not None:
-            key_map['settings_user_id'] = key.settings_user_id
         if key.slack_user_id is not None:
             key_map['slack_user_id'] = key.slack_user_id
         if key.display_flg is not None:
@@ -183,18 +172,17 @@ class SearchUserDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, settings_user_id, slack_user_id):
+    def delete_by_pk(self, slack_user_id):
         """
         Delete_by_PK
 
         Args:
-            settings_user_id:
             slack_user_id:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, settings_user_id = settings_user_id, slack_user_id = slack_user_id)
+        self.execute_delete(TABLE_ID, slack_user_id = slack_user_id)
 
 
     def delete_all(self):

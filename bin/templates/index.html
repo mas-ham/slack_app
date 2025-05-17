@@ -50,6 +50,16 @@
                 $('input[name^="im_channel_list"]').prop('checked', false);
                 return false;
             });
+
+            $('#mpim_channel_all_sel').click(function() {
+                $('input[name^="mpim_channel_list"]').prop('checked', true);
+                return false;
+            });
+
+            $('#mpim_channel_all_desel').click(function() {
+                $('input[name^="mpim_channel_list"]').prop('checked', false);
+                return false;
+            });
         });
 
     </script>
@@ -58,7 +68,7 @@
     <form id="form" name="form" action="/search" method="POST" target="_blank">
         {{ form.hidden_tag() }}
         <h1>Slack検索</h1>
-        <table border="1">
+        <table border="1" width="98%">
             <tr>
                 <th width="150px">
                     {{ form.search_val.label }}
@@ -151,6 +161,25 @@
                 <td>
                     <div class="checkbox-grid">
                         {% for channel in form.im_channel_list %}
+                            <div class="checkbox-item">
+                                <label class="checkbox-label">
+                                    {{ channel.checked(value=channel.item_id.data) }} <span>{{ channel.label.data }}</span>
+                                    {{ channel.item_id() }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    channel(mpim)
+                    <button id="mpim_channel_all_sel">全選択</button>
+                    <button id="mpim_channel_all_desel">全解除</button>
+                </th>
+                <td>
+                    <div class="checkbox-grid">
+                        {% for channel in form.mpim_channel_list %}
                             <div class="checkbox-item">
                                 <label class="checkbox-label">
                                     {{ channel.checked(value=channel.item_id.data) }} <span>{{ channel.label.data }}</span>

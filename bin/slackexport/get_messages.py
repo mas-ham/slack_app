@@ -26,22 +26,23 @@ from app_common.slack_service import SlackService
 from dataaccess.common import set_cond_model, set_sort_model
 from dataaccess.ext.slack_export_dataaccess import SlackExportDataaccess
 from dataaccess.general.channel_dataaccess import ChannelDataAccess
+from dataaccess.general.slack_user_dataaccess import SlackUserDataAccess
 from dataaccess.general.tr_channel_histories_dataaccess import TrChannelHistoriesDataAccess
 
 pd.options.display.float_format = '{:.6f}'.format
 
 
 class GetMessages:
-    def __init__(self, logger:Logger, root_dir, bin_dir, conn, is_json=False, is_server=False):
+    def __init__(self, logger:Logger, root_dir, bin_dir, conn, is_json=False):
         self.logger = logger
         self.root_dir = root_dir
         self.bin_dir = bin_dir
         self.conn = conn
         self.is_json = is_json
-        self.is_server = is_server
 
         # dataaccess
         self.channel_dataaccess = ChannelDataAccess(conn)
+        self.slack_user_dataaccess = SlackUserDataAccess(conn)
         self.tr_channel_histories_dataaccess = TrChannelHistoriesDataAccess(conn)
 
         # 設定ファイル
@@ -66,40 +67,40 @@ class GetMessages:
 
         """
 
-        self.logger.info('get slack messages', is_print=True)
-
         # 期間を取得
         oldest, latest = self.get_term()
+        # チャンネルタイプの算出
+        channel_type_list = []
+        if int(self.conf['is_export_public']):
+            channel_type_list.append(const.PUBLIC_CHANNEL)
+        if int(self.conf['is_export_private']):
+            channel_type_list.append(const.PRIVATE_CHANNEL)
+        if int(self.conf['is_export_im']):
+            channel_type_list.append(const.IM_CHANNEL)
+        if int(self.conf['is_export_mpim']):
+            channel_type_list.append(const.MPIM_CHANNEL)
 
-        cursor = self.conn.cursor()
-        # トランザクションを開始
-        self.conn.execute('BEGIN TRANSACTION')
+        if int(self.conf['is_get_messages']):
+            self.logger.info('get slack messages', is_print=True)
 
-        try:
-            # public
-            if int(self.conf['is_export_public']):
-                if int(self.conf['is_get_messages']):
-                    self._get_slack_messages(cursor, const.PUBLIC_CHANNEL, oldest, latest)
+            cursor = self.conn.cursor()
+            # トランザクションを開始
+            self.conn.execute('BEGIN TRANSACTION')
 
-            # private
-            if int(self.conf['is_export_private']):
-                if int(self.conf['is_get_messages']):
-                    self._get_slack_messages(cursor, const.PRIVATE_CHANNEL, oldest, latest)
+            try:
+                # Slackから投稿内容を取得
+                self._get_slack_messages(cursor, channel_type_list, oldest, latest)
 
-            # im
-            if int(self.conf['is_export_im']):
-                if int(self.conf['is_get_messages']):
-                    self._get_slack_messages(cursor, const.IM_CHANNEL, oldest, latest)
+                # コミット
+                self.conn.commit()
 
-            # コミット
-            self.conn.commit()
+            except sqlite3.Error as e:
+                self.conn.rollback()
+                raise e
 
-            self.logger.info('export slack messages', is_print=True)
-            self._create_slack_messages()
-
-        except sqlite3.Error as e:
-            self.conn.rollback()
-            raise e
+        # Excel出力
+        self.logger.info('export slack messages', is_print=True)
+        self._create_slack_messages()
 
         # 設定ファイル更新
         # from_dateを当日に更新する
@@ -109,13 +110,13 @@ class GetMessages:
             app_shared_service.write_conf(self.root_dir, const.SETTINGS_FILENAME, json_data)
 
 
-    def _get_slack_messages(self, cursor, channel_type, oldest, latest):
+    def _get_slack_messages(self, cursor, channel_type_list, oldest, latest):
         """
         Slackからチャンネルタイプごとに投稿内容を取得
 
         Args:
             cursor:
-            channel_type:
+            channel_type_list:
             oldest:
             latest:
 
@@ -125,17 +126,36 @@ class GetMessages:
 
         # 対象チャネルを取得
         # チャンネルの一覧を取得
-        cond = [set_cond_model.Condition('channel_type', channel_type)]
-        sort = [set_sort_model.OrderBy('channel_name')]
+        cond = [set_cond_model.Condition('channel_type', channel_type_list, 'in')]
+        sort = [set_sort_model.OrderBy('channel_type'), set_sort_model.OrderBy('channel_name')]
         channel_list = self.channel_dataaccess.select(cond, sort)
+
+        replace_emoji_list = []
+        with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
+            for data in f.readlines():
+                data = data.replace('\n', '')
+                replace_emoji_list.append({
+                    'before': data.split()[0],
+                    'after': chr(int(data.split()[1], 0)),
+                })
+
+        # ユーザー
+        # メンションがslack_user_idになっているのでdisplay_nameに置換するためのリスト
+        slack_user_list = self.slack_user_dataaccess.select_all()
+        replace_user_list = []
+        for slack_user in slack_user_list:
+            replace_user_list.append({
+                'before': slack_user.slack_user_id,
+                'after': slack_user.user_id,
+            })
 
         history_list = []
         for channel in channel_list:
             # チャンネル単位で投稿内容、返信内容を取得
             if self.is_json:
-                history_list_ = self.get_channel_messages_json(channel.channel_id, channel.channel_name)
+                history_list_ = self.get_channel_messages_json(channel.channel_id, channel.channel_name, replace_emoji_list, replace_user_list)
             else:
-                history_list_ = self.get_channel_messages(channel.channel_id, oldest, latest)
+                history_list_ = self.get_channel_messages(channel.channel_id, oldest, latest, replace_emoji_list, replace_user_list)
             history_list.extend(history_list_)
 
         # 投稿内容、返信内容の登録
@@ -166,7 +186,7 @@ class GetMessages:
                 dataaccess.upsert_reply(reply_params)
 
 
-    def get_channel_messages(self, channel_id, oldest, latest):
+    def get_channel_messages(self, channel_id, oldest, latest, replace_emoji_list, replace_user_list):
         """
         Slackのチャネル内の投稿内容と返信内容を取得
 
@@ -179,7 +199,6 @@ class GetMessages:
 
         """
         history_list = []
-        reply_list = []
         # 投稿一覧を取得
         time.sleep(1)
         result_history = self.slack_service.get_history(channel_id, limit=1000, oldest=oldest, latest=latest)
@@ -196,7 +215,13 @@ class GetMessages:
                 history_record = {}
                 # slackから取得した情報を追加
                 try:
-                    history_record = {'channel_id': channel_id, 'post_date':float(data_history['ts']), 'post_user': data_history['user'], 'post_message': data_history['text']}
+                    post_date = datetime.datetime.fromtimestamp(int(str(data_history['ts']).split('.')[0]))
+                    history_record = {
+                        'channel_id': channel_id,
+                        'post_date':post_date,
+                        'post_user': data_history['user'],
+                        'post_message': _convert_message(data_history['text'], replace_emoji_list, replace_user_list)
+                    }
                     # history_list.append({'channel_id': channel_id, 'post_date':float(data_history['ts']), 'post_user': data_history['user'], 'post_message': data_history['text']})
                 except Exception as e:
                     shared_service.print_except(e, self.logger)
@@ -215,6 +240,7 @@ class GetMessages:
 
                 conversation_replies = result_replies['messages']
 
+                reply_list = []
                 for data_replies in conversation_replies:
                     if data_history['ts'] == data_replies['ts']:
                         # 返信内容には投稿自体の情報も含まれるため、投稿自体の情報は省く
@@ -222,7 +248,12 @@ class GetMessages:
 
                     # slackから取得した情報を追加
                     try:
-                        reply_list.append({'reply_date': float(data_replies['ts']), 'reply_user': data_replies['user'], 'reply_message': data_replies['text']})
+                        reply_date = datetime.datetime.fromtimestamp(int(str(data_replies['ts']).split('.')[0]))
+                        reply_list.append({
+                            'reply_date': reply_date,
+                            'reply_user': data_replies['user'],
+                            'reply_message': _convert_message(data_replies['text'], replace_emoji_list, replace_user_list)
+                        })
                     except Exception as e:
                         shared_service.print_except(e, self.logger)
                         self.logger.debug(','.join(f'{key}:{value}' for key, value in data_replies.items()))
@@ -246,7 +277,7 @@ class GetMessages:
         return history_list
 
 
-    def get_channel_messages_json(self, channel_id, channel_name):
+    def get_channel_messages_json(self, channel_id, channel_name, replace_emoji_list, replace_user_list):
         """
         Slackのチャネル内の投稿内容と返信内容を取得
 
@@ -273,30 +304,32 @@ class GetMessages:
                         all_data.append(data)
 
         history_list = []
-        reply_list = []
         for data in all_data:
             # 親スレッドかどうか
             if not 'ts' in data:
                 continue
             if not 'thread_ts' in data or data['ts'] == data['thread_ts']:
+                post_date = datetime.datetime.fromtimestamp(int(str(data['ts']).split('.')[0]))
                 history_record = {
                     'channel_id': channel_id,
-                    'post_date': float(data['ts']),
+                    'post_date': post_date.strftime('%Y-%m-%d %H:%M:%S'),
                     'post_user': data['user'],
-                    'post_message': data['text'],
+                    'post_message': _convert_message(data['text'], replace_emoji_list, replace_user_list),
                 }
 
                 # 返信内容を取得
+                reply_list = []
                 if not 'replies' in data:
                     history_record['reply_list'] = []
                 else:
                     for replies in data['replies']:
                         for data2 in all_data:
                             if data2['ts'] == replies['ts']:
+                                reply_date = datetime.datetime.fromtimestamp(int(str(replies['ts']).split('.')[0]))
                                 reply_list.append({
-                                    'reply_date': float(data2['ts']),
+                                    'reply_date': reply_date.strftime('%Y-%m-%d %H:%M:%S'),
                                     'reply_user': data2['user'],
-                                    'reply_message': data2['text'],
+                                    'reply_message': _convert_message(data2['text'], replace_emoji_list, replace_user_list),
                                 })
                                 break
                     history_record['reply_list'] = reply_list
@@ -330,9 +363,12 @@ class GetMessages:
         return oldest, latest
 
 
-    def _get_channel_list(self):
+    def _get_channel_list(self, channel_type_list=None):
         """
         チャンネル一覧を取得
+
+        Args:
+            channel_type_list:
 
         Returns:
 
@@ -341,6 +377,12 @@ class GetMessages:
             set_sort_model.OrderBy('channel_type'),
             set_sort_model.OrderBy('channel_name')
         ]
+        if channel_type_list:
+            cond = [
+                set_cond_model.Condition('channel_tyype', channel_type_list, 'in')
+            ]
+            return self.channel_dataaccess.select(conditions=cond, order_by_list=sort)
+
         return self.channel_dataaccess.select_all(order_by_list=sort)
 
 
@@ -356,20 +398,6 @@ class GetMessages:
         # チャンネル一覧を取得
         channel_list = self._get_channel_list()
 
-        # 絵文字
-        replace_emoji_list = []
-        with open(os.path.join(self.root_dir, const.CONF_DIR, const.EMOJI_FILENAME)) as f:
-            for data in f.readlines():
-                data = data.replace('\n', '')
-                replace_emoji_list.append({
-                    'before': data.split()[0],
-                    'after': chr(int(data.split()[1], 0))
-                })
-
-        # ユーザー
-        # メンションがslack_user_idになっているのでdisplay_nameに置換するためのリスト
-        replace_user_list = []
-
         # チャンネルごとにExcelファイルを生成
         for channel in channel_list:
             self.logger.info(channel.channel_name, is_print=True)
@@ -384,7 +412,7 @@ class GetMessages:
             pd.DataFrame(message_list).to_excel(output_file, sheet_name=channel.channel_name, index=False)
 
             # Excelフォーマット
-            self._format(output_file, replace_user_list, replace_emoji_list)
+            self._format(output_file)
 
 
     def _get_message_list(self, channel_type, channel_name) -> list | None:
@@ -430,14 +458,12 @@ class GetMessages:
         return message_list
 
 
-    def _format(self, output_file, replace_user_list, replace_emoji_list):
+    def _format(self, output_file):
         """
         Excelフォーマット
 
         Args:
             output_file:
-            replace_user_list:
-            replace_emoji_list:
 
         Returns:
 
@@ -497,9 +523,9 @@ class GetMessages:
                             icon_name = str(cell.value)
                             img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), f'{icon_name}.jpg')
                             if os.path.exists(img_path):
-                                cell.value = None
                                 img = Image(img_path)
                                 ws.add_image(img, cell.coordinate)
+                            cell.value = None
 
                     if col_id == 'reply_icon':
                         # 返信者アイコン
@@ -507,20 +533,9 @@ class GetMessages:
                             icon_name = str(cell.value)
                             img_path = os.path.join(app_shared_service.get_icon_dir(self.bin_dir), f'{icon_name}.jpg')
                             if os.path.exists(img_path):
-                                cell.value = None
                                 img = Image(img_path)
                                 ws.add_image(img, cell.coordinate)
-
-                    if col_id == 'post_message' or col_id == 'reply_message':
-                        # メッセージの場合、ユーザー名、絵文字を置換する
-                        if cell.value is not None:
-                            for user in replace_user_list:
-                                if user['before'] in cell.value:
-                                    cell.value = cell.value.replace(user['before'], user['after'])
-                            for emoji in replace_emoji_list:
-                                if emoji['before'] in cell.value:
-                                    cell.value = cell.value.replace(emoji['before'], emoji['after'])
-
+                            cell.value = None
 
         if ws.max_row > 1:
             # 条件付き書式
@@ -574,4 +589,29 @@ def get_column_letter(n):
     while n > 0:
         n, remainder = divmod(n - 1, 26)
         result = chr(65 + remainder) + result
+    return result
+
+
+def _convert_message(val, replace_emoji_list, replace_user_list):
+    """
+    絵文字、ユーザー名を置換
+
+    Args:
+        val:
+        replace_emoji_list:
+        replace_user_list:
+
+    Returns:
+
+    """
+    if not val:
+        return ''
+    result = val
+    for user in replace_user_list:
+        if user['before'] in result:
+            result = result.replace(user['before'], user['after'])
+    for emoji in replace_emoji_list:
+        if emoji['before'] in result:
+            result = result.replace(emoji['before'], emoji['after'])
+
     return result

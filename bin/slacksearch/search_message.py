@@ -30,166 +30,77 @@ def get_poster_list(conn):
 
     poster_list = []
     for _, row in results.iterrows():
-        poster_list.append({
-            'user_id': row['user_id'],
-            'user_name': row['user_name'],
-            'display_name': f"{row['user_id']}：{row['user_name']}",
-            'checked': row['default_check_flg'],
-        })
+        if row['user_id'] == 'deactivateduser':
+            continue
+        if row['display_flg'] is None or str(row['display_flg']) == '1':
+            poster_list.append({
+                'slack_user_id': row['slack_user_id'],
+                'user_id': row['user_id'],
+                'user_name': row['user_name'],
+                'display_name': f"{row['user_id']}：{row['user_name']}",
+                'checked': row['default_check_flg'],
+            })
 
     return poster_list
 
 
-def get_channel_list(conn, channel_type):
+def get_channel_list(conn):
     """
     チャンネル一覧を取得
 
     Args:
         conn:
-        channel_type:
 
     Returns:
 
     """
     dataaccess = slack_search_dataaccess.SlackSearchDataaccess(conn)
-    results = dataaccess.get_channel_list(channel_type)
+    results = dataaccess.get_channel_list()
 
     channel_list = []
     for _, row in results.iterrows():
-        channel_list.append({
-            'channel_name': row['channel_name'],
-            'checked': row['default_check_flg'],
-        })
+        if row['display_flg'] is None or str(row['display_flg']) == '1':
+            channel_list.append({
+                'channel_id': row['channel_id'],
+                'channel_type': row['channel_type'],
+                'channel_name': row['channel_name'],
+                'checked': row['default_check_flg'],
+            })
 
     return channel_list
 
 
-def search(root_dir, model: SlackSearchModel):
+def search(root_dir, conn, model: SlackSearchModel):
     """
     検索
 
     Args:
         root_dir:
+        conn:
         model:
 
     Returns:
 
     """
 
-    result_list = []
-    # public
-    for channel_name in model.public_channel_list:
-        result = _search_from_channel(root_dir, const.PUBLIC_DIR, channel_name, model)
-        if result is None:
-            continue
-        result_list.append(result)
-
-    # private
-    for channel_name in model.private_channel_list:
-        result = _search_from_channel(root_dir, const.PRIVATE_DIR, channel_name, model)
-        if result is None:
-            continue
-        result_list.append(result)
-
-    # im
-    for channel_name in model.im_channel_list:
-        result = _search_from_channel(root_dir, const.IM_DIR, channel_name, model)
-        if result is None:
-            continue
-        result_list.append(result)
+    channel_list = []
+    channel_list.extend(model.public_channel_list)
+    channel_list.extend(model.private_channel_list)
+    channel_list.extend(model.im_channel_list)
+    channel_list.extend(model.im_channel_list)
+    dataaccess = slack_search_dataaccess.SlackSearchDataaccess(conn)
+    # 検索
+    result_list = dataaccess.search(
+        model.poster_list,
+        channel_list,
+        model.search_val_list,
+        model.search_type,
+        model.is_contains_reply,
+        app_shared_service.convert_from_date(model.search_from_date),
+        app_shared_service.convert_to_date(model.search_to_date),
+    )
 
     return _convert_to_json_for_search(result_list, model.search_val_list)
-
-
-def _search_from_channel(root_dir, channel_type, channel_name, model: SlackSearchModel):
-    """
-    チャンネルから対象を検索
-
-    Args:
-        root_dir:
-        channel_type:
-        channel_name:
-        model:
-
-    Returns:
-
-    """
-
-    filename = os.path.join(root_dir, const.EXPORT_DIR, channel_type, f'{channel_name}.xlsx')
-    if not os.path.isfile(filename):
-        return None
-
-    # 全件を取得
-    df_all = pd.read_excel(filename, index_col=[0], names=('no', 'post_icon', 'post_name', 'post_date', 'post_message', 'reply_icon', 'reply_name', 'reply_date', 'reply_message', 'group_flg'), dtype=str).fillna('')
-    df_all['channel_name'] = channel_name
-    df_all['channel_type'] = channel_type
-
-    # 投稿内容で検索
-    filtered_by_post = _search_post_replies(df_all, model, True)
-
-    if not model.is_contains_reply:
-        # 返信を含めない場合はここで返却
-        return filtered_by_post
-
-    # 返信内容で検索
-    filtered_by_reply = _search_post_replies(df_all, model, False)
-
-    # マージ
-    merged_data = pd.concat([filtered_by_post, filtered_by_reply])
-    if merged_data.empty:
-        return pd.DataFrame()
-
-    # 重複を除去してソート
-    return merged_data.drop_duplicates(subset='post_date', keep='first').sort_values(by='post_date')
-
-
-def _search_post_replies(df_all, model:SlackSearchModel, is_post):
-    """
-    投稿内容/返信内容から検索
-
-    Args:
-        df_all:
-        model:
-        is_post:
-
-    Returns:
-
-    """
-    prefix = 'post' if is_post else 'reply'
-
-    # 投稿者/返信者で絞り込み
-    filtered_data = df_all
-    if is_post:
-        # 投稿者が対象の場合、group_flgが「0」のデータで絞り込む
-        filtered_data = filtered_data.query('group_flg == "0"')
-
-    if model.poster_list:
-        filtered_data = df_all[df_all[f'{prefix}_name'].isin(model.poster_list)]
-
-    # 期間(From)で絞り込み
-    if model.search_from_date:
-        from_date = app_shared_service.convert_from_date(model.search_from_date)
-        filtered_data = filtered_data[filtered_data[f'{prefix}_date'] >= from_date]
-
-    # 期間(To)で絞り込み
-    if model.search_to_date:
-        to_date = app_shared_service.convert_to_date(model.search_to_date)
-        filtered_data = filtered_data[filtered_data[f'{prefix}_date'] <= to_date]
-
-    # 検索文字列で絞り込み
-    if model.search_val_list:
-        if model.search_type == '01':
-            # AND検索
-            filtered_data = filtered_data[
-                filtered_data[f'{prefix}_message'].apply(lambda x: all(kw.lower() in x.lower() for kw in model.search_val_list))
-            ]
-        else:
-            # OR検索
-            filtered_data = filtered_data[
-                filtered_data[f'{prefix}_message'].apply(lambda x: any(kw.lower() in x.lower() for kw in model.search_val_list))
-            ]
-
-    return filtered_data
 
 
 def _convert_to_json_for_search(record_list, search_val_list):
@@ -201,25 +112,24 @@ def _convert_to_json_for_search(record_list, search_val_list):
     Returns:
 
     """
-    if not record_list:
+    if record_list.empty:
         return []
 
     result_list = []
     before_key = ''
-    for record in record_list:
-        for _, row in record.iterrows():
-            if before_key == row['post_date']:
-                continue
+    for _, row in record_list.iterrows():
+        if before_key == row['post_date']:
+            continue
 
-            result_list.append({
-                'channel_name': row['channel_name'],
-                'post_name': row['post_name'],
-                'post_date': row['post_date'],
-                'post_message': _add_highlights(row['post_message'], search_val_list),
-                'channel_type': row['channel_type'],
-            })
+        result_list.append({
+            'channel_name': row['channel_name'],
+            'post_name': row['post_name'],
+            'post_date': row['post_date'],
+            'post_message': _add_highlights(row['post_message'], search_val_list),
+            'channel_type': row['channel_type'],
+        })
 
-            before_key = row['post_date']
+        before_key = row['post_date']
 
     return result_list
 
@@ -273,3 +183,4 @@ def _add_highlights(val, target_vals):
     # サニタイズして返却
     allowed_tags = ['mark']
     return bleach.clean(result, tags=set(allowed_tags))
+

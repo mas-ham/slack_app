@@ -1,0 +1,100 @@
+<!--
+    Slack検索：設定画面
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<head>
+    <meta charset="UTF-8">
+    <title>Slack Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/slack_app.css') }}" type="text/css">
+
+    <script>
+        $(function(){
+        });
+
+    </script>
+</head>
+<body>
+    <form id="form" name="form" action="/registSettings" method="POST">
+        {{ form.hidden_tag() }}
+        <h1>Slack検索設定</h1>
+        <h2>投稿者/返信者</h2>
+        <table border="1">
+            <tr>
+                <th width="20px">
+                    表示
+                </th>
+                <th width="20px">
+                    初期値
+                </th>
+                <th width="350px">
+                    表示名
+                </th>
+                <th width="400px">
+                    ユーザー名
+                </th>
+            </tr>
+            {% for record in poster_list %}
+                <tr>
+                    <td>
+                        <input type="checkbox" id="poster_display_{{ record.index }}" name="poster_display" value="{{ record.slack_user_id }}" {{ record.checked_display }} />
+                    </td>
+                    <td>
+                        <input type="checkbox" id="poster_check_{{ record.index }}" name="poster_check" value="{{ record.slack_user_id }}" {{ record.checked_check }} />
+                    </td>
+                    <td>
+                        {{ record.user_id }}
+                    </td>
+                    <td>
+                        {{ record.user_name }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+        <br>
+        <h2>チャンネル</h2>
+        <table border="1">
+            <tr>
+                <th width="20px">
+                    表示
+                </th>
+                <th width="20px">
+                    初期値
+                </th>
+                <th width="200px">
+                    種類
+                </th>
+                <th width="550px">
+                    チャンネル名
+                </th>
+            </tr>
+            {% for record in channel_list %}
+                <tr>
+                    <td>
+                        <input type="checkbox" id="channel_display_{{ record.index }}" name="channel_display" value="{{ record.channel_id }}" {{ record.checked_display }} />
+                    </td>
+                    <td>
+                        <input type="checkbox" id="channel_check_{{ record.index }}" name="channel_check" value="{{ record.channel_id }}" {{ record.checked_check }} />
+                    </td>
+                    <td>
+                        {{ record.channel_type }}
+                    </td>
+                    <td>
+                        {{ record.channel_name }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+        <br>
+        <table>
+            <tr>
+                <td>
+                    {{ form.regist_button }}
+                </td>
+            </tr>
+        </table>
+        <br>
+    </form>
+</body>
+</html>

@@ -15,6 +15,7 @@ class SlackSearchModel:
     public_channel_list: list = None
     private_channel_list: list = None
     im_channel_list: list = None
+    mpim_channel_list: list = None
     search_from_date: str = ''
     search_to_date: str = ''
 

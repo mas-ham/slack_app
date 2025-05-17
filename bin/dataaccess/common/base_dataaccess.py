@@ -79,6 +79,11 @@ class BaseDataAccess:
                 case 'less':
                     where_list.append(f'{condition.key} < ?')
                     params.append(condition.val)
+                case 'in':
+                    placeholder_list = ['?' for _ in condition.val]
+                    val_list = [v for v in condition.val]
+                    where_list.append(f'{condition.key} IN ({", ".join(placeholder_list)})')
+                    params.extend(val_list)
                 case _:
                     # FIXME:
                     where_list.append(f'{condition.key} = ?')
