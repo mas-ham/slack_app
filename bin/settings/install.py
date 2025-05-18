@@ -10,20 +10,20 @@ def install(bin_dir, conn):
     cur = conn.cursor()
 
     # テーブルcreate
-    # __create_table(cur, bin_dir, 'auth_user')
-    # __create_table(cur, bin_dir, 'channel')
+    __create_table(cur, bin_dir, 'auth_user')
+    __create_table(cur, bin_dir, 'channel')
     __create_table(cur, bin_dir, 'search_channel')
     __create_table(cur, bin_dir, 'search_user')
-    # __create_table(cur, bin_dir, 'slack_user')
-    # __create_table(cur, bin_dir, 'sso_user')
-    # __create_table(cur, bin_dir, 'tr_channel_histories')
-    # __create_table(cur, bin_dir, 'tr_channel_replies')
+    __create_table(cur, bin_dir, 'slack_user')
+    __create_table(cur, bin_dir, 'sso_user')
+    __create_table(cur, bin_dir, 'tr_channel_histories')
+    __create_table(cur, bin_dir, 'tr_channel_replies')
 
     # インデックス
     cur.execute('CREATE INDEX idx_histories_post_user ON tr_channel_histories(post_slack_user_id)')
     cur.execute('CREATE INDEX idx_histories_channel_id ON tr_channel_histories(channel_id)')
     cur.execute('CREATE INDEX idx_replies_reply_user ON tr_channel_replies(reply_slack_user_id)')
-    cur.execute('CREATE INDEX idx_replies_history_id ON tr_channel_replies(channel_history_id)')
+    cur.execute('CREATE INDEX idx_replies_history_id ON tr_channel_replies(thread_ts)')
 
     conn.commit()
     cur.close()

@@ -26,18 +26,20 @@ SQL_UPSERT_CHANNEL = (
 SQL_UPSERT_HISTORIES = (
     """
     INSERT INTO tr_channel_histories (
-        channel_id
+        ts
+      , channel_id
       , post_date
       , post_slack_user_id
       , post_message
     )
     VALUES (
-        :channel_id
+        :ts
+      , :channel_id
       , :post_date
       , :post_slack_user_id
       , :post_message
     )
-    ON CONFLICT (post_date)
+    ON CONFLICT (ts)
     DO UPDATE 
         SET post_message     = :post_message
     """
@@ -47,18 +49,20 @@ SQL_UPSERT_HISTORIES = (
 SQL_UPSERT_REPLIES = (
     """
     INSERT INTO tr_channel_replies (
-        channel_history_id
+        ts
+      , thread_ts
       , reply_date
       , reply_slack_user_id
       , reply_message
     )
     VALUES (
-        :channel_history_id
+        :ts
+      , :thread_ts
       , :reply_date
       , :reply_slack_user_id
       , :reply_message
     )
-    ON CONFLICT (reply_date)
+    ON CONFLICT (ts)
     DO UPDATE 
         SET reply_message     = :reply_message
     """
@@ -67,8 +71,8 @@ SQL_UPSERT_REPLIES = (
 SQL_GET_SLACK_MESSAGES = (
     """
     SELECT
-        history.channel_history_id     AS channel_history_id
-      , reply.channel_reply_id         AS channel_reply_id
+        history.ts                     AS thread_ts
+      , reply.ts                       AS ts
       , user1.user_id                  AS post_user_id
       , history.post_date              AS post_date
       , history.post_message           AS post_message
@@ -78,7 +82,7 @@ SQL_GET_SLACK_MESSAGES = (
     FROM
       tr_channel_histories               history
       LEFT OUTER JOIN tr_channel_replies reply
-        ON  reply.channel_history_id  = history.channel_history_id
+        ON  reply.thread_ts           = history.ts
       LEFT OUTER JOIN channel            channel
         ON  channel.channel_id        = history.channel_id
       LEFT OUTER JOIN slack_user         user1
@@ -148,4 +152,4 @@ class SlackExportDataaccess:
 
         """
         self.cursor.execute(SQL_GET_SLACK_MESSAGES, params)
-        return pd.DataFrame(self.cursor.fetchall(), columns=['channel_history_id', 'channel_reply_id', 'post_name', 'post_date', 'post_message', 'reply_name', 'reply_date', 'reply_message'])
+        return pd.DataFrame(self.cursor.fetchall(), columns=['thread_ts', 'ts', 'post_name', 'post_date', 'post_message', 'reply_name', 'reply_date', 'reply_message'])

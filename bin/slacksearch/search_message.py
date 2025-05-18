@@ -181,5 +181,5 @@ def _add_highlights(val, target_vals):
 
     # サニタイズして返却
     allowed_tags = ['mark']
-    return bleach.clean(result.replace('<!channel', '< !channel>'), tags=set(allowed_tags))
+    return bleach.clean(result.replace('<!channel>', '< !channel>'), tags=set(allowed_tags))
 

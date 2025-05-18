@@ -1,22 +1,22 @@
 """
 Entity：tr_channel_replies
 
-create 2025/05/16 hamada
+create 2025/05/18 hamada
 """
 import dataclasses
 
 
 @dataclasses.dataclass
 class TrChannelReplies:
-    channel_reply_id = None
-    channel_history_id = None
+    ts = None
+    thread_ts = None
     reply_date = None
     reply_slack_user_id = None
     reply_message = None
 
-    def __init__(self, channel_reply_id = None, channel_history_id = None, reply_date = None, reply_slack_user_id = None, reply_message = None):
-        self.channel_reply_id = channel_reply_id
-        self.channel_history_id = channel_history_id
+    def __init__(self, ts = None, thread_ts = None, reply_date = None, reply_slack_user_id = None, reply_message = None):
+        self.ts = ts
+        self.thread_ts = thread_ts
         self.reply_date = reply_date
         self.reply_slack_user_id = reply_slack_user_id
         self.reply_message = reply_message

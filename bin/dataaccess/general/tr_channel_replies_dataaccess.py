@@ -1,7 +1,7 @@
 """
 dataaccess：tr_channel_replies
 
-create 2025/05/16 hamada
+create 2025/05/18 hamada
 """
 from dataaccess.common.base_dataaccess import BaseDataAccess
 from dataaccess.entity.tr_channel_replies import TrChannelReplies
@@ -14,7 +14,8 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         super().__init__(conn)
 
         self.col_list = [
-            'channel_history_id',
+            'ts',
+            'thread_ts',
             'reply_date',
             'reply_slack_user_id',
             'reply_message',
@@ -36,23 +37,23 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         results = self.execute_select(TABLE_ID, conditions, order_by_list)
         if results.empty:
             return []
-        return [TrChannelReplies(row['channel_history_id'], row['reply_date'], row['reply_slack_user_id'], row['reply_message']) for _, row in results.iterrows()]
+        return [TrChannelReplies(row['ts'], row['thread_ts'], row['reply_date'], row['reply_slack_user_id'], row['reply_message']) for _, row in results.iterrows()]
 
 
-    def select_by_pk(self, channel_reply_id) -> TrChannelReplies | None:
+    def select_by_pk(self, ts) -> TrChannelReplies | None:
         """
         Select_by_PK
 
         Args:
-            channel_reply_id:
+            ts:
 
         Returns:
 
         """
-        results = self.execute_select_by_pk(TABLE_ID, channel_reply_id = channel_reply_id)
+        results = self.execute_select_by_pk(TABLE_ID, ts = ts)
         if results.empty:
             return None
-        return TrChannelReplies(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2], results.iat[0, 3])
+        return TrChannelReplies(results.iat[0, 0], results.iat[0, 1], results.iat[0, 2], results.iat[0, 3], results.iat[0, 4])
 
 
     def select_all(self, order_by_list = None) -> list[TrChannelReplies]:
@@ -68,7 +69,7 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         results = self.execute_select_all(TABLE_ID, order_by_list)
         if results.empty:
             return []
-        return [TrChannelReplies(row['channel_history_id'], row['reply_date'], row['reply_slack_user_id'], row['reply_message']) for _, row in results.iterrows()]
+        return [TrChannelReplies(row['ts'], row['thread_ts'], row['reply_date'], row['reply_slack_user_id'], row['reply_message']) for _, row in results.iterrows()]
 
 
     def insert(self, entity: TrChannelReplies) -> int:
@@ -82,7 +83,8 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
 
         """
         params = (
-            entity.channel_history_id,
+            entity.ts,
+            entity.thread_ts,
             entity.reply_date,
             entity.reply_slack_user_id,
             entity.reply_message,
@@ -104,7 +106,8 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         for entity in entity_list:
             params.append(
                 (
-                    entity.channel_history_id,
+                    entity.ts,
+                    entity.thread_ts,
                     entity.reply_date,
                     entity.reply_slack_user_id,
                     entity.reply_message,
@@ -113,40 +116,43 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         self.execute_insert_many(TABLE_ID, self.col_list, params)
 
 
-    def update(self, entity: TrChannelReplies, channel_reply_id):
+    def update(self, entity: TrChannelReplies, ts):
         """
         Update
 
         Args:
             entity:
-            channel_reply_id:
+            ts:
 
         Returns:
 
         """
         update_info = {
-            'channel_history_id': entity.channel_history_id,
+            'ts': entity.ts,
+            'thread_ts': entity.thread_ts,
             'reply_date': entity.reply_date,
             'reply_slack_user_id': entity.reply_slack_user_id,
             'reply_message': entity.reply_message,
         }
-        self.execute_update(TABLE_ID, update_info, channel_reply_id = channel_reply_id)
+        self.execute_update(TABLE_ID, update_info, ts = ts)
 
 
-    def update_selective(self, entity: TrChannelReplies, channel_reply_id):
+    def update_selective(self, entity: TrChannelReplies, ts):
         """
         Update selective
 
         Args:
             entity:
-            channel_reply_id:
+            ts:
 
         Returns:
 
         """
         update_info = {}
-        if entity.channel_history_id is not None:
-            update_info['channel_history_id'] = entity.channel_history_id
+        if entity.ts is not None:
+            update_info['ts'] = entity.ts
+        if entity.thread_ts is not None:
+            update_info['thread_ts'] = entity.thread_ts
         if entity.reply_date is not None:
             update_info['reply_date'] = entity.reply_date
         if entity.reply_slack_user_id is not None:
@@ -154,7 +160,7 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         if entity.reply_message is not None:
             update_info['reply_message'] = entity.reply_message
 
-        self.execute_update(TABLE_ID, update_info, channel_reply_id = channel_reply_id)
+        self.execute_update(TABLE_ID, update_info, ts = ts)
 
 
     def delete(self, key: TrChannelReplies):
@@ -168,10 +174,10 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
 
         """
         key_map = {}
-        if key.channel_reply_id is not None:
-            key_map['channel_reply_id'] = key.channel_reply_id
-        if key.channel_history_id is not None:
-            key_map['channel_history_id'] = key.channel_history_id
+        if key.ts is not None:
+            key_map['ts'] = key.ts
+        if key.thread_ts is not None:
+            key_map['thread_ts'] = key.thread_ts
         if key.reply_date is not None:
             key_map['reply_date'] = key.reply_date
         if key.reply_slack_user_id is not None:
@@ -182,17 +188,17 @@ class TrChannelRepliesDataAccess(BaseDataAccess):
         self.execute_delete(TABLE_ID, **key_map)
 
 
-    def delete_by_pk(self, channel_reply_id):
+    def delete_by_pk(self, ts):
         """
         Delete_by_PK
 
         Args:
-            channel_reply_id:
+            ts:
 
         Returns:
 
         """
-        self.execute_delete(TABLE_ID, channel_reply_id = channel_reply_id)
+        self.execute_delete(TABLE_ID, ts = ts)
 
 
     def delete_all(self):

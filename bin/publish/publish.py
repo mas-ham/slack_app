@@ -11,7 +11,6 @@ from common import const, sql_shared_service
 from common.logger.logger import Logger
 from dataaccess.common.set_cond_model import Condition
 from dataaccess.general import channel_dataaccess, slack_user_dataaccess, search_channel_dataaccess, search_user_dataaccess, tr_channel_histories_dataaccess, tr_channel_replies_dataaccess
-from dataaccess.ext.slack_export_dataaccess import SlackExportDataaccess
 
 
 class Publish:
@@ -32,12 +31,19 @@ class Publish:
         # 公開用DBでテーブルを再作成
         os.makedirs(os.path.join(self.root_dir, 'dist', 'db'), exist_ok=True)
         with sql_shared_service.get_connection(os.path.join(self.root_dir, 'dist')) as conn_dst:
-            _create_table(conn_dst.cursor(), self.bin_dir, 'slack_user')
-            _create_table(conn_dst.cursor(), self.bin_dir, 'search_user')
-            _create_table(conn_dst.cursor(), self.bin_dir, 'channel')
-            _create_table(conn_dst.cursor(), self.bin_dir, 'search_channel')
-            _create_table(conn_dst.cursor(), self.bin_dir, 'tr_channel_histories')
-            _create_table(conn_dst.cursor(), self.bin_dir, 'tr_channel_replies')
+            cursor_dist = conn_dst.cursor()
+            _create_table(cursor_dist, self.bin_dir, 'slack_user')
+            _create_table(cursor_dist, self.bin_dir, 'search_user')
+            _create_table(cursor_dist, self.bin_dir, 'channel')
+            _create_table(cursor_dist, self.bin_dir, 'search_channel')
+            _create_table(cursor_dist, self.bin_dir, 'tr_channel_histories')
+            _create_table(cursor_dist, self.bin_dir, 'tr_channel_replies')
+
+            # インデックス
+            cursor_dist.execute('CREATE INDEX idx_histories_post_user ON tr_channel_histories(post_slack_user_id)')
+            cursor_dist.execute('CREATE INDEX idx_histories_channel_id ON tr_channel_histories(channel_id)')
+            cursor_dist.execute('CREATE INDEX idx_replies_reply_user ON tr_channel_replies(reply_slack_user_id)')
+            cursor_dist.execute('CREATE INDEX idx_replies_history_id ON tr_channel_replies(thread_ts)')
 
         # 移行データを取得
         print('get source_data')
@@ -48,9 +54,8 @@ class Publish:
             channel_id_list = [r.channel_id for r in channel_records]
             search_channel_records = _get_search_channel(conn_src, channel_id_list)
             history_records = _get_channel_histories(conn_src, channel_id_list)
-            history_id_list = [r.channel_history_id for r in history_records]
-            reply_records = _get_channel_replies(conn_src, history_id_list)
-            history_reply_records = _get_histories_replies(history_records, reply_records)
+            thread_ts_list = [r.ts for r in history_records]
+            reply_records = _get_channel_replies(conn_src, thread_ts_list)
 
         # 新DBへ登録
         print('insert dist_db')
@@ -59,7 +64,8 @@ class Publish:
             _insert_search_user(conn_dst, search_user_records)
             _insert_channel(conn_dst, channel_records)
             _insert_search_channel(conn_dst, search_channel_records)
-            _insert_histories_replies(conn_dst, history_reply_records)
+            _insert_histories(conn_dst, history_records)
+            _insert_replies(conn_dst, reply_records)
 
         # Excelをコピー
         print('copy excel')
@@ -101,34 +107,10 @@ def _get_channel_histories(conn, channel_id_list):
     return dataaccess.select(conditions=cond)
 
 
-def _get_channel_replies(conn, history_id_list):
-    cond = [Condition('channel_history_id', history_id_list, 'in')]
+def _get_channel_replies(conn, thread_ts_list):
+    cond = [Condition('thread_ts', thread_ts_list, 'in')]
     dataaccess = tr_channel_replies_dataaccess.TrChannelRepliesDataAccess(conn)
     return dataaccess.select(conditions=cond)
-
-
-def _get_histories_replies(histories, replies):
-    result_list = []
-    for history in histories:
-        reply_list = []
-        history_id = history.channel_history_id
-        for reply in replies:
-            if history_id == reply.channel_history_id:
-                reply_list.append({
-                    'channel_history_id': history_id,
-                    'reply_date': reply.reply_date,
-                    'reply_slack_user_id': reply.reply_slack_user_id,
-                    'reply_message': reply.reply_message,
-                })
-        result_list.append({
-            'channel_id': history.channel_id,
-            'post_date': history.post_date,
-            'post_slack_user_id': history.post_slack_user_id,
-            'post_message': history.post_message,
-            'reply_list': reply_list,
-        })
-
-    return result_list
 
 
 def _insert_slack_user(conn, list_):
@@ -159,51 +141,6 @@ def _insert_histories(conn, list_):
 def _insert_replies(conn, list_):
     dataaccess = tr_channel_replies_dataaccess.TrChannelRepliesDataAccess(conn)
     dataaccess.insert_many(list_)
-
-
-def _insert_histories_replies(conn, list_):
-    cursor = conn.cursor()
-    dataaccess = SlackExportDataaccess(cursor)
-    for history_info in list_:
-        history_params = {
-            'channel_id': history_info['channel_id'],
-            'post_date': history_info['post_date'],
-            'post_slack_user_id': history_info['post_slack_user_id'],
-            'post_message': history_info['post_message']
-        }
-        dataaccess.upsert_history(history_params)
-        # 登録されたID
-        if cursor.lastrowid:
-            channel_history_id = cursor.lastrowid
-        else:
-            # 既存のIDを取得
-            channel_history_id = _get_channel_history_id_by_logical_pk(conn, history_info['post_date'])
-
-        # 返信内容
-        for reply_info in history_info['reply_list']:
-            reply_params = {
-                'channel_history_id': channel_history_id,
-                'reply_date': reply_info['reply_date'],
-                'reply_slack_user_id': reply_info['reply_slack_user_id'],
-                'reply_message': reply_info['reply_message']
-            }
-            dataaccess.upsert_reply(reply_params)
-
-def _get_channel_history_id_by_logical_pk(conn, post_date):
-    """
-    論理キーで投稿履歴IDを取得する
-
-    Args:
-        post_date:
-
-    Returns:
-
-    """
-    cond = [Condition('post_date', post_date)]
-    dataaccess = tr_channel_histories_dataaccess.TrChannelHistoriesDataAccess(conn)
-    results = dataaccess.select(conditions=cond)
-
-    return results[0].channel_id
 
 
 def _create_table(cur, bin_dir, table_id):

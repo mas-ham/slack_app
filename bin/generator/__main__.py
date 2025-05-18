@@ -12,12 +12,12 @@ if __name__ == '__main__':
     table_list = [
         # {'table_id': 'auth_user', 'autoincrement': False},
         # {'table_id': 'channel', 'autoincrement': False},
-        {'table_id': 'search_channel', 'autoincrement': False},
-        {'table_id': 'search_user', 'autoincrement': False},
+        # {'table_id': 'search_channel', 'autoincrement': False},
+        # {'table_id': 'search_user', 'autoincrement': False},
         # {'table_id': 'slack_user', 'autoincrement': False},
         # {'table_id': 'sso_user', 'autoincrement': False},
-        # {'table_id': 'tr_channel_histories', 'autoincrement': True},
-        # {'table_id': 'tr_channel_replies', 'autoincrement': True},
+        {'table_id': 'tr_channel_histories', 'autoincrement': False},
+        {'table_id': 'tr_channel_replies', 'autoincrement': False},
     ]
     try:
         generate(root_dir, bin_dir, table_list)

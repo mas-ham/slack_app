@@ -63,7 +63,7 @@ SQL_SEARCH_WITH = (
         FROM
           tr_channel_histories               history
           LEFT OUTER JOIN tr_channel_replies reply
-            ON  reply.channel_history_id  = history.channel_history_id
+            ON  reply.thread_ts           = history.ts
           LEFT OUTER JOIN channel            channel
             ON  channel.channel_id        = history.channel_id
           LEFT OUTER JOIN slack_user         user1
@@ -79,14 +79,14 @@ SQL_SEARCH_WITH = (
 SQL_SEARCH_COMMON = (
     """
     SELECT
-      post_name,
-      post_date,
-      post_message,
-      reply_name,
-      reply_date,
-      reply_message,
-      channel_type,
-      channel_name
+        post_name
+      , post_date
+      , post_message
+      , reply_name
+      , reply_date
+      , reply_message
+      , channel_name
+      , channel_type
     FROM 
       message
     WHERE
@@ -142,7 +142,7 @@ class SlackSearchDataaccess:
         # SQLを組み立て
         params = []
         # チャンネル
-        sql_channel = ''
+        sql_channel = '1 = 1'
         if channel_id_list:
             placeholder_list = ['?' for _ in channel_id_list]
             val_list = [v for v in channel_id_list]

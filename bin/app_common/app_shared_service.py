@@ -67,6 +67,20 @@ def write_conf(root_dir, filename, json_data):
     with open(json_file, 'w', encoding='utf-8') as f:
         json.dump(json_data, f, indent=4, ensure_ascii=False)
 
+def convert_jst(unix):
+    """
+    UNIX時間をJSTに変換
+
+    Args:
+        unix:
+
+    Returns:
+
+    """
+    dt_utc = datetime.datetime.fromtimestamp(unix, tz=datetime.timezone.utc)
+    jst = dt_utc.astimezone(datetime.timezone(datetime.timedelta(hours=9)))
+    return jst.strftime('%Y-%m-%d %H:%M:%S')
+
 
 def convert_from_date(val):
     """

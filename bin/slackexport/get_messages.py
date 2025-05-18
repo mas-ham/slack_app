@@ -162,23 +162,19 @@ class GetMessages:
         dataaccess = SlackExportDataaccess(cursor)
         for history_info in history_list:
             history_params = {
+                'ts': history_info['ts'],
                 'channel_id': history_info['channel_id'],
                 'post_date': history_info['post_date'],
                 'post_slack_user_id': history_info['post_user'],
                 'post_message': history_info['post_message']
             }
             dataaccess.upsert_history(history_params)
-            # 登録されたID
-            if cursor.lastrowid:
-                channel_history_id = cursor.lastrowid
-            else:
-                # 既存のIDを取得
-                channel_history_id = self.get_channel_history_id_by_logical_pk(history_info['post_date'])
 
             # 返信内容
             for reply_info in history_info['reply_list']:
                 reply_params = {
-                    'channel_history_id': channel_history_id,
+                    'ts': reply_info['ts'],
+                    'thread_ts': history_info['ts'],
                     'reply_date': reply_info['reply_date'],
                     'reply_slack_user_id': reply_info['reply_user'],
                     'reply_message': reply_info['reply_message']
@@ -217,7 +213,7 @@ class GetMessages:
                 history_record = {}
                 # slackから取得した情報を追加
                 try:
-                    post_date = datetime.datetime.fromtimestamp(int(str(data_history['ts']).split('.')[0]))
+                    post_date = app_shared_service.convert_jst(float(data_history['ts']))
                     history_record = {
                         'channel_id': channel_id,
                         'post_date':post_date,
@@ -250,7 +246,7 @@ class GetMessages:
 
                     # slackから取得した情報を追加
                     try:
-                        reply_date = datetime.datetime.fromtimestamp(int(str(data_replies['ts']).split('.')[0]))
+                        reply_date = app_shared_service.convert_jst(float(data_replies['ts']))
                         reply_list.append({
                             'reply_date': reply_date,
                             'reply_user': data_replies['user'],
@@ -313,12 +309,16 @@ class GetMessages:
             if not 'ts' in data:
                 continue
             if not 'thread_ts' in data or data['ts'] == data['thread_ts']:
-                post_date = datetime.datetime.fromtimestamp(int(str(data['ts']).split('.')[0]))
+                post_date = app_shared_service.convert_jst(float(data['ts']))
+                post_message = _convert_message(data['text'], replace_emoji_list, replace_user_list)
+                if 'upload' in data and data['upload'] and not data['text']:
+                    post_message = '<file_upload>'
                 history_record = {
+                    'ts': str(data['ts']),
                     'channel_id': channel_id,
-                    'post_date': post_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'post_date': post_date,
                     'post_user': data['user'],
-                    'post_message': _convert_message(data['text'], replace_emoji_list, replace_user_list),
+                    'post_message': post_message,
                 }
 
                 # 返信内容を取得
@@ -329,9 +329,11 @@ class GetMessages:
                     for replies in data['replies']:
                         for data2 in all_data:
                             if data2['ts'] == replies['ts']:
-                                reply_date = datetime.datetime.fromtimestamp(int(str(replies['ts']).split('.')[0]))
+                                reply_date = app_shared_service.convert_jst(float(replies['ts']))
                                 reply_list.append({
-                                    'reply_date': reply_date.strftime('%Y-%m-%d %H:%M:%S'),
+                                    'ts': str(replies['ts']),
+                                    'thread_ts': str(data['ts']),
+                                    'reply_date': reply_date,
                                     'reply_user': data2['user'],
                                     'reply_message': _convert_message(data2['text'], replace_emoji_list, replace_user_list),
                                 })
@@ -441,22 +443,22 @@ class GetMessages:
 
         # Excel出力用に整形
         message_list = []
-        history_id_list = []
+        thread_ts_list = []
         no = 1
         for _, row in results.iterrows():
             message_list.append({
                 'no': no,
-                'post_icon': '' if row['channel_history_id'] in history_id_list else row['post_name'],
+                'post_icon': '' if row['thread_ts'] in thread_ts_list else row['post_name'],
                 'post_name': row['post_name'],
                 'post_date': row['post_date'],
-                'post_message': '' if row['channel_history_id'] in history_id_list else row['post_message'],
+                'post_message': '' if row['thread_ts'] in thread_ts_list else row['post_message'],
                 'reply_icon': row['reply_name'],
                 'reply_name': row['reply_name'],
                 'reply_date': row['reply_date'],
                 'reply_message': row['reply_message'],
             })
-            if not row['channel_history_id'] in history_id_list:
-                history_id_list.append(row['channel_history_id'])
+            if not row['thread_ts'] in thread_ts_list:
+                thread_ts_list.append(row['thread_ts'])
                 no += 1
 
         return message_list
@@ -561,22 +563,6 @@ class GetMessages:
 
         # 保存
         wb.save(output_file)
-
-
-    def get_channel_history_id_by_logical_pk(self, post_date):
-        """
-        論理キーで投稿履歴IDを取得する
-
-        Args:
-            post_date:
-
-        Returns:
-
-        """
-        cond = [set_cond_model.Condition('post_date', post_date)]
-        results = self.tr_channel_histories_dataaccess.select(conditions=cond)
-
-        return results[0].channel_id
 
 
 def get_column_letter(n):
