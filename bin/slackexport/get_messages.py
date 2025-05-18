@@ -194,6 +194,8 @@ class GetMessages:
             channel_id:
             oldest:
             latest:
+            replace_emoji_list:
+            replace_user_list:
 
         Returns:
 
@@ -284,6 +286,8 @@ class GetMessages:
         Args:
             channel_id:
             channel_name:
+            replace_emoji_list:
+            replace_user_list:
 
         Returns:
 

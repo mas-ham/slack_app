@@ -70,12 +70,11 @@ def get_channel_list(conn):
     return channel_list
 
 
-def search(root_dir, conn, model: SlackSearchModel):
+def search(conn, model: SlackSearchModel):
     """
     検索
 
     Args:
-        root_dir:
         conn:
         model:
 
@@ -182,5 +181,5 @@ def _add_highlights(val, target_vals):
 
     # サニタイズして返却
     allowed_tags = ['mark']
-    return bleach.clean(result, tags=set(allowed_tags))
+    return bleach.clean(result.replace('<!channel', '< !channel>'), tags=set(allowed_tags))
 

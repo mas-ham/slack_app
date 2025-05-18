@@ -131,7 +131,7 @@ def search():
     form = SlackSearchForm(request.form)
     model = _convert_search_model(form)
     with sql_shared_service.get_connection(root_dir) as conn:
-        result_list = search_message.search(root_dir, conn, model)
+        result_list = search_message.search(conn, model)
 
     # アイコンを設定
     for record in result_list:
