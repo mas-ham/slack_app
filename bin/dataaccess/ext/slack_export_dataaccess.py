@@ -1,3 +1,7 @@
+"""
+Slackメッセージ取得用dataaccess
+
+"""
 import pandas as pd
 
 # チャンネルを登録

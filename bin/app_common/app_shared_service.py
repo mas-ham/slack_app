@@ -116,4 +116,13 @@ def convert_to_date(val):
 
 
 def convert_flg(val: bool) -> str:
+    """
+    bool型のフラグをstrに変換
+
+    Args:
+        val:
+
+    Returns:
+
+    """
     return '1' if val else '0'

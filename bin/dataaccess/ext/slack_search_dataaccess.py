@@ -1,3 +1,7 @@
+"""
+Slackメッセージ検索用dataaccess
+
+"""
 import pandas as pd
 
 # 投稿者/返信者を取得
