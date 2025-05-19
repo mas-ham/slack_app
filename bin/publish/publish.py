@@ -33,9 +33,9 @@ class Publish:
         with sql_shared_service.get_connection(os.path.join(self.root_dir, 'dist')) as conn_dst:
             cursor_dist = conn_dst.cursor()
             _create_table(cursor_dist, self.bin_dir, 'slack_user')
-            _create_table(cursor_dist, self.bin_dir, 'search_user')
+            _create_table(cursor_dist, self.bin_dir, 'search_user', is_force_drop=False)
             _create_table(cursor_dist, self.bin_dir, 'channel')
-            _create_table(cursor_dist, self.bin_dir, 'search_channel')
+            _create_table(cursor_dist, self.bin_dir, 'search_channel', is_force_drop=False)
             _create_table(cursor_dist, self.bin_dir, 'tr_channel_histories')
             _create_table(cursor_dist, self.bin_dir, 'tr_channel_replies')
 
@@ -120,7 +120,10 @@ def _insert_slack_user(conn, list_):
 
 def _insert_search_user(conn, list_):
     dataaccess = search_user_dataaccess.SearchUserDataAccess(conn)
-    dataaccess.insert_many(list_)
+    for l in list_:
+        slack_user_id = l.slack_user_id
+        if dataaccess.select_by_pk(slack_user_id) is None:
+            dataaccess.insert(l)
 
 
 def _insert_channel(conn, list_):
@@ -130,7 +133,10 @@ def _insert_channel(conn, list_):
 
 def _insert_search_channel(conn, list_):
     dataaccess = search_channel_dataaccess.SearchChannelDataAccess(conn)
-    dataaccess.insert_many(list_)
+    for l in list_:
+        channel_id = l.channel_id
+        if dataaccess.select_by_pk(channel_id) is None:
+            dataaccess.insert(l)
 
 
 def _insert_histories(conn, list_):
@@ -143,12 +149,13 @@ def _insert_replies(conn, list_):
     dataaccess.insert_many(list_)
 
 
-def _create_table(cur, bin_dir, table_id):
+def _create_table(cur, bin_dir, table_id, is_force_drop=True):
     """
     テーブルCreate
     """
     # drop
-    cur.execute(_create_query_drop(table_id))
+    if is_force_drop:
+        cur.execute(_create_query_drop(table_id))
     # create
     cur.execute(_get_query(bin_dir, f'{table_id}.sql'))
 
