@@ -317,7 +317,7 @@ class GetMessages:
                     'ts': str(data['ts']),
                     'channel_id': channel_id,
                     'post_date': post_date,
-                    'post_user': data['user'],
+                    'post_user': data['user'] if 'user' in data else '',
                     'post_message': post_message,
                 }
 
@@ -334,7 +334,7 @@ class GetMessages:
                                     'ts': str(replies['ts']),
                                     'thread_ts': str(data['ts']),
                                     'reply_date': reply_date,
-                                    'reply_user': data2['user'],
+                                    'reply_user': data2['user'] if 'user' in data2 else '',
                                     'reply_message': _convert_message(data2['text'], replace_emoji_list, replace_user_list),
                                 })
                                 break
@@ -584,7 +584,7 @@ def get_column_letter(n):
 
 def _convert_message(val, replace_emoji_list, replace_user_list):
     """
-    絵文字、ユーザー名を置換
+    不正文字の除去、絵文字、ユーザー名を置換
 
     Args:
         val:
@@ -597,11 +597,17 @@ def _convert_message(val, replace_emoji_list, replace_user_list):
     if not val:
         return ''
     result = val
+    # 不正文字の除去
+    result = app_shared_service.remove_control_characters(result)
+    # ユーザー名を置換
     for user in replace_user_list:
         if user['before'] in result:
             result = result.replace(user['before'], user['after'])
+    # 絵文字を置換
     for emoji in replace_emoji_list:
         if emoji['before'] in result:
             result = result.replace(emoji['before'], emoji['after'])
 
     return result
+
+

@@ -6,6 +6,7 @@ create 2025/05/09 hamada
 import os
 import json
 import datetime
+import re
 
 import dateutil
 
@@ -126,3 +127,16 @@ def convert_flg(val: bool) -> str:
 
     """
     return '1' if val else '0'
+
+
+def remove_control_characters(text):
+    """
+    ASCII範囲の制御文字を除去
+
+    Args:
+        text:
+
+    Returns:
+
+    """
+    return re.sub(r'[\x00-\x1F\x7F]', '', text)
