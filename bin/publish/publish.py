@@ -9,6 +9,7 @@ from pathlib import Path
 
 from common import const, sql_shared_service
 from common.logger.logger import Logger
+from app_common import app_shared_service
 from dataaccess.common.set_cond_model import Condition
 from dataaccess.general import channel_dataaccess, slack_user_dataaccess, search_channel_dataaccess, search_user_dataaccess, tr_channel_histories_dataaccess, tr_channel_replies_dataaccess
 
@@ -78,47 +79,133 @@ class Publish:
             if file_path.is_file():
                 shutil.copy2(file_path, os.path.join(export_dir, file_path.name))
 
+        # iconをコピー
+        print('copy icon')
+        icon_dir = app_shared_service.get_icon_dir(os.path.join(self.root_dir, 'dist', 'bin'))
+        os.makedirs(icon_dir, exist_ok=True)
+
+        for file_path in Path(app_shared_service.get_icon_dir(self.bin_dir)).glob('*.jpg'):
+            if file_path.is_file():
+                shutil.copy2(file_path, os.path.join(icon_dir, file_path.name))
+
 
 def _get_slack_user(conn):
+    """
+    SlackUser情報を取得
+
+    Args:
+        conn:
+
+    Returns:
+
+    """
     dataaccess = slack_user_dataaccess.SlackUserDataAccess(conn)
     return dataaccess.select_all()
 
 
 def _get_search_user(conn):
+    """
+    検索用SlackUser情報を取得
+
+    Args:
+        conn:
+
+    Returns:
+
+    """
     dataaccess = search_user_dataaccess.SearchUserDataAccess(conn)
     return dataaccess.select_all()
 
 
 def _get_channel(conn):
+    """
+    チャンネル情報を取得
+
+    Args:
+        conn:
+
+    Returns:
+
+    """
     cond = [Condition('channel_type', const.PUBLIC_CHANNEL)]
     dataaccess = channel_dataaccess.ChannelDataAccess(conn)
     return dataaccess.select(conditions=cond)
 
 
 def _get_search_channel(conn, channel_id_list):
+    """
+    検索用チャンネル情報を取得
+
+    Args:
+        conn:
+        channel_id_list:
+
+    Returns:
+
+    """
     cond = [Condition('channel_id', channel_id_list, 'in')]
     dataaccess = search_channel_dataaccess.SearchChannelDataAccess(conn)
     return dataaccess.select(conditions=cond)
 
 
 def _get_channel_histories(conn, channel_id_list):
+    """
+    投稿内容を取得
+
+    Args:
+        conn:
+        channel_id_list:
+
+    Returns:
+
+    """
     cond = [Condition('channel_id', channel_id_list, 'in')]
     dataaccess = tr_channel_histories_dataaccess.TrChannelHistoriesDataAccess(conn)
     return dataaccess.select(conditions=cond)
 
 
 def _get_channel_replies(conn, thread_ts_list):
+    """
+    返信内容を取得
+
+    Args:
+        conn:
+        thread_ts_list:
+
+    Returns:
+
+    """
     cond = [Condition('thread_ts', thread_ts_list, 'in')]
     dataaccess = tr_channel_replies_dataaccess.TrChannelRepliesDataAccess(conn)
     return dataaccess.select(conditions=cond)
 
 
 def _insert_slack_user(conn, list_):
+    """
+    SlackUser情報を登録
+
+    Args:
+        conn:
+        list_:
+
+    Returns:
+
+    """
     dataaccess = slack_user_dataaccess.SlackUserDataAccess(conn)
     dataaccess.insert_many(list_)
 
 
 def _insert_search_user(conn, list_):
+    """
+    検索用SlackUser情報を登録
+
+    Args:
+        conn:
+        list_:
+
+    Returns:
+
+    """
     dataaccess = search_user_dataaccess.SearchUserDataAccess(conn)
     for l in list_:
         slack_user_id = l.slack_user_id
@@ -127,11 +214,31 @@ def _insert_search_user(conn, list_):
 
 
 def _insert_channel(conn, list_):
+    """
+    チャンネル情報を登録
+
+    Args:
+        conn:
+        list_:
+
+    Returns:
+
+    """
     dataaccess = channel_dataaccess.ChannelDataAccess(conn)
     dataaccess.insert_many(list_)
 
 
 def _insert_search_channel(conn, list_):
+    """
+    検索用チャンネル情報を登録
+
+    Args:
+        conn:
+        list_:
+
+    Returns:
+
+    """
     dataaccess = search_channel_dataaccess.SearchChannelDataAccess(conn)
     for l in list_:
         channel_id = l.channel_id
@@ -140,11 +247,31 @@ def _insert_search_channel(conn, list_):
 
 
 def _insert_histories(conn, list_):
+    """
+    投稿内容を登録
+
+    Args:
+        conn:
+        list_:
+
+    Returns:
+
+    """
     dataaccess = tr_channel_histories_dataaccess.TrChannelHistoriesDataAccess(conn)
     dataaccess.insert_many(list_)
 
 
 def _insert_replies(conn, list_):
+    """
+    返信内容を登録
+
+    Args:
+        conn:
+        list_:
+
+    Returns:
+
+    """
     dataaccess = tr_channel_replies_dataaccess.TrChannelRepliesDataAccess(conn)
     dataaccess.insert_many(list_)
 
