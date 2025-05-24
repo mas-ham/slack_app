@@ -80,6 +80,7 @@ class BaseDataAccess:
                     where_list.append(f'{condition.key} < ?')
                     params.append(condition.val)
                 case 'in':
+                    # FIXME: パラメーター上限999を超えたときにエラーが発生する
                     placeholder_list = ['?' for _ in condition.val]
                     val_list = [v for v in condition.val]
                     where_list.append(f'{condition.key} IN ({", ".join(placeholder_list)})')
@@ -176,7 +177,12 @@ class BaseDataAccess:
             _write_sql_log(query, *params)
 
         cur = self.conn.cursor()
-        cur.executemany(query, params)
+        # パラメーター数に上限があるため分割して実行
+        batch_size = get_max_safe_batch_size(len(column_id_list))
+        for i in range(0, len(params), batch_size):
+            batch = params[i:i + batch_size]
+            cur.executemany(query, batch)
+        # cur.executemany(query, params)
         cur.close()
 
 
@@ -286,6 +292,20 @@ def _set_order_by(order_by_list: list | None):
         list_.append(f'{order_by.key}{asc_desc}')
 
     return '' if not list_ else f" ORDER BY {', '.join(list_)}"
+
+
+def get_max_safe_batch_size(num_columns, max_params=999):
+    """
+    executemanyのバッチサイズを取得
+
+    Args:
+        num_columns:
+        max_params:
+
+    Returns:
+
+    """
+    return max_params // num_columns
 
 
 def _write_sql_log(sql, *args):

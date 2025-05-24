@@ -10,7 +10,7 @@ from common.logger.logger import Logger
 
 class SlackService:
     def __init__(self, logger:Logger, token):
-        self.client = WebClient(token=token)
+        self.client = WebClient(token=token, proxy=None)
         self.logger = logger
 
 

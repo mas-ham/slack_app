@@ -175,9 +175,16 @@ def _get_channel_replies(conn, thread_ts_list):
     Returns:
 
     """
-    cond = [Condition('thread_ts', thread_ts_list, 'in')]
-    dataaccess = tr_channel_replies_dataaccess.TrChannelRepliesDataAccess(conn)
-    return dataaccess.select(conditions=cond)
+    # 標準dataaccessはパラメーター上限エラーが発生するためここで分割する
+    results = []
+    max_in_values = 999
+    for i in range(0, len(thread_ts_list), max_in_values):
+        batch = thread_ts_list[i:i+max_in_values]
+        cond = [Condition('thread_ts', batch, 'in')]
+        dataaccess = tr_channel_replies_dataaccess.TrChannelRepliesDataAccess(conn)
+        results.extend(dataaccess.select(conditions=cond))
+
+    return results
 
 
 def _insert_slack_user(conn, list_):
